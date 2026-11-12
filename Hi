@@ -1,0 +1,4224 @@
+--!nocheck
+--[[
+    Blox fruit-Pvp (Hermanos Dev Style Dynamic Silent Aim & Background CamLock Edition)
+    Game: Blox Fruits (Sea 1, Sea 2, Sea 3 v30.1.2+)
+    Executor: Delta / Mobile & PC Compatible
+]]
+
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game:GetService("Players").LocalPlayer
+
+-- ============================================================================
+-- [SECTION 1] SERVICES, EXECUTOR POLYFILLS & CLEANUP
+-- ============================================================================
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace         = game:GetService("Workspace")
+local TeleportService   = game:GetService("TeleportService")
+local HttpService       = game:GetService("HttpService")
+local Lighting          = game:GetService("Lighting")
+
+local VirtualUser = nil
+pcall(function() VirtualUser = game:GetService("VirtualUser") end)
+
+local LocalPlayer = Players.LocalPlayer
+local Camera      = Workspace.CurrentCamera
+local Mouse       = LocalPlayer:GetMouse()
+
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    if Workspace.CurrentCamera then
+        Camera = Workspace.CurrentCamera
+    end
+end)
+
+-- Fast Network Replication Tuning
+pcall(function()
+    settings().Network.IncomingReplicationLag = 0
+end)
+
+local getgenv = getgenv or function() return _G end
+local getrenv = getrenv or function() return _G end
+local gethui  = gethui or function()
+    local ok, core = pcall(function() return game:GetService("CoreGui") end)
+    if ok and core then return core end
+    return LocalPlayer:WaitForChild("PlayerGui")
+end
+local setclipboard = setclipboard or toclipboard or function(text)
+    print("[Blox fruit-Pvp Clipboard]: " .. tostring(text))
+end
+local getgc             = getgc or get_gc_objects or function() return {} end
+local hookmetamethod    = hookmetamethod or nil
+local getrawmetatable   = getrawmetatable or nil
+local setreadonly       = setreadonly or make_writeable or nil
+local hookfunction      = hookfunction or replaceclosure or nil
+local getnamecallmethod = getnamecallmethod or function() return "" end
+local setnamecallmethod = setnamecallmethod or nil
+local getcallingscript  = getcallingscript or function() return nil end
+local newcclosure       = newcclosure or function(fn) return fn end
+local checkcaller       = checkcaller or function() return false end
+local writefile         = writefile or nil
+local readfile          = readfile or nil
+local isfile            = isfile or function() return false end
+local makefolder        = makefolder or nil
+local isfolder          = isfolder or function() return false end
+local delfile           = delfile or nil
+
+local ParentGui = gethui()
+for _, child in ipairs(ParentGui:GetChildren()) do
+    if child.Name == "HermanosDev_PVP_Hub" or child.Name == "BloxFruit_PVP_Hub" or child.Name == "HermanosDev_Visuals" then
+        child:Destroy()
+    end
+end
+for _, child in ipairs(Workspace:GetChildren()) do
+    if child.Name == "HermanosDev_WorldVisuals" then
+        child:Destroy()
+    end
+end
+
+local VisualsFolder = Instance.new("Folder")
+VisualsFolder.Name = "HermanosDev_Visuals"
+VisualsFolder.Parent = ParentGui
+
+local WorldVisualsFolder = Instance.new("Folder")
+WorldVisualsFolder.Name = "HermanosDev_WorldVisuals"
+WorldVisualsFolder.Parent = Workspace
+
+pcall(function()
+    local enemies = Workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, npc in ipairs(enemies:GetChildren()) do
+            local hrp = npc:FindFirstChild("HumanoidRootPart")
+            if hrp and hrp:IsA("BasePart") and hrp.Size.X > 10 then
+                hrp.Size = Vector3.new(2, 2, 1)
+            end
+        end
+    end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and hrp:IsA("BasePart") and hrp.Size.X > 10 then
+                hrp.Size = Vector3.new(2, 2, 1)
+            end
+        end
+    end
+end)
+
+-- ============================================================================
+-- [SECTION 2] VERIFIED LUCIDE ICON REGISTRY & TRANSLUCENT THEME PALETTE
+-- ============================================================================
+local LucideIcons = {
+    Flame          = "rbxassetid://10723376114",
+    Link           = "rbxassetid://10723426722",
+    Minus          = "rbxassetid://10734896206",
+    Maximize       = "rbxassetid://10734886735",
+    Close          = "rbxassetid://10747384394",
+    Search         = "rbxassetid://10734943674",
+    ChevronUp      = "rbxassetid://10709791523",
+    ChevronDown    = "rbxassetid://10709790948",
+    ChevronsUpDown = "rbxassetid://10709797508",
+    Check          = "rbxassetid://10709790644",
+    General        = "rbxassetid://10709751939",
+    Combat         = "rbxassetid://10734975692",
+    ESP            = "rbxassetid://10723346959",
+    BountyHunting  = "rbxassetid://10734962068",
+    KeyBind        = "rbxassetid://10723416765",
+    Misc           = "rbxassetid://10709811445",
+    Haki           = "rbxassetid://10723404472",
+    Ability        = "rbxassetid://10734951847",
+    Soru           = "rbxassetid://10723404472",
+    AttackAura     = "rbxassetid://10723405649",
+    Utility        = "rbxassetid://10747383470",
+    Visualize      = "rbxassetid://10709782845",
+    Target         = "rbxassetid://10734977012",
+    Bell           = "rbxassetid://10709775704",
+    Refresh        = "rbxassetid://10734933266",
+    SpiderWeb      = "rbxassetid://15269177520"
+}
+
+local Theme = {
+    WindowBg       = Color3.fromRGB(20, 21, 25),
+    WindowTrans    = 0.14,
+    SidebarBg      = Color3.fromRGB(18, 19, 23),
+    SidebarTrans   = 0.22,
+    HeaderBg       = Color3.fromRGB(22, 23, 28),
+    HeaderTrans    = 0.10,
+    CardBg         = Color3.fromRGB(36, 38, 45),
+    CardHoverBg    = Color3.fromRGB(44, 47, 56),
+    CardTrans      = 0.32,
+    TabActiveBg    = Color3.fromRGB(46, 49, 58),
+    TabActiveTrans = 0.15,
+    CheckboxOn     = Color3.fromRGB(59, 130, 246),
+    CheckboxOff    = Color3.fromRGB(75, 79, 92),
+    SliderFill     = Color3.fromRGB(59, 130, 246),
+    SliderTrack    = Color3.fromRGB(26, 28, 34),
+    SliderThumb    = Color3.fromRGB(255, 255, 255),
+    FreeBadgeRed   = Color3.fromRGB(198, 28, 35),
+    DiscordPillBg  = Color3.fromRGB(246, 247, 250),
+    DiscordText    = Color3.fromRGB(20, 22, 26),
+    TextPrimary    = Color3.fromRGB(245, 246, 250),
+    TextSecondary  = Color3.fromRGB(152, 157, 170),
+    TextMuted      = Color3.fromRGB(108, 114, 128),
+    HudButtonBg    = Color3.fromRGB(20, 21, 26),
+    HudButtonTrans = 0.14,
+    HudRedText     = Color3.fromRGB(235, 52, 52),
+    FovYellow      = Color3.fromRGB(238, 222, 45),
+    VisualRed      = Color3.fromRGB(240, 32, 32),
+    VisualGreen    = Color3.fromRGB(42, 218, 72),
+    SuccessGreen   = Color3.fromRGB(74, 222, 128)
+}
+
+-- ============================================================================
+-- [SECTION 3] DEFAULT CONFIGURATION & SAVE SYSTEM
+-- ============================================================================
+getgenv().script_mode = getgenv().script_mode or "PVP"
+
+local DefaultConfig = {
+    UI_Visible           = false,
+    UI_Maximized         = false,
+    ShowTargetHUD        = true,
+    CameraLock           = false,
+    TPToTarget           = false,
+
+    -- [LEGIT -> GENERAL]
+    BusoHaki             = true,
+    KenHaki              = true,
+    RaceV3               = false,
+    RaceV4               = true,
+    AntiStun             = true,
+    SpeedMultiply        = 3,
+    SpeedBoost           = false,
+    JumpPower            = false,
+    JumpPowerValue       = 115,
+    WalkOnWater          = true,
+
+    -- [LEGIT -> COMBAT]
+    SilentAim            = true,
+    SilentAimMode        = "FOV",
+    AimTarget            = "Player",
+    AimPart              = "HumanoidRootPart",
+    PredictionFactor     = 0.125,
+    ShowFOV              = true,
+    FOVSize              = 483,
+    FOVMode              = "Middle",
+    AimRange             = 1500,
+    SoruSilentRange      = 600,
+    SoruSilent           = false,
+    AttackAura           = false,
+    FastAttackDelay      = 0.02,
+    TeleportBehideRange  = 250,
+    TeleportBehideTarget = false,
+    TeleportOffsetZ      = 4.5,
+    TeleportOffsetY      = 0.0,
+    DrawRedLine          = true,
+    DrawSphere           = true,
+
+    -- [LEGIT -> ESP]
+    ESP_Name             = false,
+    ESP_Health           = false,
+    ESP_Distance         = false,
+    ESP_Team             = false,
+    ESP_Level            = false,
+    ESP_Bounty           = false,
+    ESP_KenActive        = false,
+    ESP_PvpState         = false,
+
+    -- [RAGE -> KEY BIND]
+    Key_ToggleUI         = Enum.KeyCode.RightControl,
+    Key_CameraLock       = Enum.KeyCode.Q,
+    Key_TPToTarget       = Enum.KeyCode.T,
+    Key_SkipTarget       = Enum.KeyCode.G,
+    Key_SoruSilent       = Enum.KeyCode.R,
+
+    -- [RAGE -> MISC]
+    InvisiblePlus        = false,
+    InfiniteGeppo        = false,
+    InfiniteEnergy       = false,
+    WhiteScreen          = false,
+    FPSBoost             = false,
+    BypassTP             = true,
+    SkipFriends          = false,
+    SkipRaceV4           = false
+}
+
+getgenv().HermanosConfig = {}
+local Config = getgenv().HermanosConfig
+for k, v in pairs(DefaultConfig) do
+    Config[k] = v
+end
+
+local ConfigFolderName = "HermanosDev_Config"
+local ConfigFileName   = ConfigFolderName .. "/BloxFruit_PVP_Config_v5.json"
+
+local State = {
+    Running              = true,
+    CurrentTarget        = nil,
+    LockedTarget         = nil,
+    VisualLineTarget     = nil,
+    SkillLockedTarget    = nil,
+    BlacklistedTargets   = {},
+    CombatTaggedPlayers  = {},
+    InCombatWithMe       = {},
+    PlayerLastHealth     = {},
+    FriendCache          = {},
+    CachedSafeZoneParts  = {},
+    LastSafeZoneCacheTick= 0,
+    LastTargetScanTick   = 0,
+    HookedHumanoids      = setmetatable({}, { __mode = "k" }),
+    HookedSkillButtons   = setmetatable({}, { __mode = "k" }),
+    HookedSoruButtons    = setmetatable({}, { __mode = "k" }),
+    HookedTools          = setmetatable({}, { __mode = "k" }),
+    HookedBodyMovers     = setmetatable({}, { __mode = "k" }),
+    MyLastHealth         = nil,
+    IsHoldingMobileSkill = false,
+    NormalSoruBypassTick = 0,
+    SkillAimEndTick      = 0,
+    LastSkillActionTick  = 0,
+    LastSoruTPExecution  = 0,
+    LastMousePosSyncTick = 0,
+    LastBusoTick         = 0,
+    LastKenTick          = 0,
+    LastRaceV3Tick       = 0,
+    LastRaceV4Tick       = 0,
+    LastAttackTick       = 0,
+    LastGCPatchTick      = 0,
+    LastSkillFireTick    = 0,
+    LastPhaseTick        = 0,
+    LastServerHopTick    = 0,
+    ComboCounter         = 1,
+    Connections          = {},
+    ESPObjects           = {},
+    LoadedFromSave       = false,
+    PlaceId              = game.PlaceId,
+    IsSea1               = (game.PlaceId == 2753915549),
+    IsSea2               = (game.PlaceId == 4442272183 or game.PlaceId == 79091703265657),
+    IsSea3               = (game.PlaceId == 7449423635 or game.PlaceId == 100117331123089),
+    CommF_               = nil,
+    CommE                = nil,
+    RegisterAttack       = nil,
+    RegisterHit          = nil,
+    CachedCombatCtrl     = nil,
+    LastCombatCtrlScan   = 0
+}
+
+-- Pre-Cached Fast SilentAim Upvalue Table (Updated every RenderStepped & Stepped, O(1) read inside hooks)
+local SilentCache = {
+    Active           = false,
+    TargetPos        = Vector3.zero,
+    OriginPos        = Vector3.zero,
+    UnitDir          = Vector3.new(0, 0, -1),
+    HitCFrame        = CFrame.identity,
+    OriginLookCFrame = CFrame.identity,
+    FlatLookCFrame   = CFrame.identity,
+    CamLookCFrame    = CFrame.identity,
+    AimPart          = nil,
+    CameraPos        = Vector3.zero,
+    CamUnitDir       = Vector3.new(0, 0, -1)
+}
+
+local NetHitAuth = {
+    Remote     = nil,
+    HitToken   = nil,
+    SessionId  = nil,
+    SessionHex = nil,
+    Captured   = false
+}
+
+local Core = {}
+local UI   = {}
+
+function Core.SaveConfiguration()
+    if not writefile then return false end
+    local ok = false
+    pcall(function()
+        if makefolder and isfolder and not isfolder(ConfigFolderName) then
+            makefolder(ConfigFolderName)
+        end
+        local serializable = {}
+        for k, v in pairs(Config) do
+            if typeof(v) == "EnumItem" then
+                serializable[k] = v.Name
+            else
+                serializable[k] = v
+            end
+        end
+        writefile(ConfigFileName, HttpService:JSONEncode(serializable))
+        ok = true
+    end)
+    return ok
+end
+
+function Core.LoadConfiguration()
+    if not readfile or not isfile or not isfile(ConfigFileName) then
+        return false
+    end
+    local ok, decoded = pcall(function()
+        return HttpService:JSONDecode(readfile(ConfigFileName))
+    end)
+    if ok and type(decoded) == "table" then
+        for k, v in pairs(decoded) do
+            if DefaultConfig[k] ~= nil then
+                if typeof(DefaultConfig[k]) == "EnumItem" and type(v) == "string" and Enum.KeyCode[v] then
+                    Config[k] = Enum.KeyCode[v]
+                else
+                    Config[k] = v
+                end
+            end
+        end
+        return true
+    end
+    return false
+end
+
+State.LoadedFromSave = Core.LoadConfiguration()
+
+-- ============================================================================
+-- [SECTION 4] SEA 1, SEA 2 & SEA 3 PORTALS & SAFEZONE BOUNDARIES
+-- ============================================================================
+local PortalLocations = {
+    Sea3 = {
+        ["Castle On The Sea"] = Vector3.new(-5058.77, 314.51, -3155.88),
+        ["Hydra Island"]      = Vector3.new(5756.83, 610.42, -253.92),
+        ["Floating Turtle"]   = Vector3.new(-12463.87, 374.91, -7523.77),
+        ["Great Tree"]        = Vector3.new(28282.57, 14896.85, 105.10),
+        ["Temple Of Time"]    = Vector3.new(28286.35, 14895.30, 102.62)
+    },
+    Sea2 = {
+        ["Mansion"]           = Vector3.new(-288.46, 306.13, 597.99),
+        ["Flamingo Room"]     = Vector3.new(2284.91, 15.15, 905.48),
+        ["Cursed Ship"]       = Vector3.new(923.21, 126.97, 32852.83),
+        ["Zombie Island"]     = Vector3.new(-6508.55, 89.03, 132.83)
+    },
+    Sea1 = {
+        ["Sky Island 1"]      = Vector3.new(-4607.82, 872.54, 1667.55),
+        ["Sky Island 2"]      = Vector3.new(-7894.61, 5547.14, -380.29),
+        ["Under Water City"]  = Vector3.new(61163.85, 11.67, 1819.78),
+        ["Whirlpool"]         = Vector3.new(3864.68, 6.73, 1926.21)
+    }
+}
+
+local FallbackSafeZones = {
+    { Pos = Vector3.new(-5074, 314, -3030),  Radius = 110 },
+    { Pos = Vector3.new(-12548, 337, -7485), Radius = 90  },
+    { Pos = Vector3.new(28286, 14895, 102),  Radius = 120 },
+    { Pos = Vector3.new(-380, 77, 255),      Radius = 75  },
+    { Pos = Vector3.new(-288, 306, 598),     Radius = 85  },
+    { Pos = Vector3.new(-655, 8, 1436),      Radius = 80  }
+}
+
+-- ============================================================================
+-- [SECTION 5] BLOX FRUITS REMOTES, FAST CACHED SAFEZONE & TARGET ENGINE
+-- ============================================================================
+function Core.ResolveCombatNet()
+    pcall(function()
+        local rem = ReplicatedStorage:FindFirstChild("Remotes")
+        if rem then
+            State.CommF_ = State.CommF_ or rem:FindFirstChild("CommF_")
+            State.CommE  = State.CommE  or rem:FindFirstChild("CommE")
+        end
+        local modules = ReplicatedStorage:FindFirstChild("Modules")
+        local net = modules and modules:FindFirstChild("Net")
+        if net then
+            State.RegisterAttack = net:FindFirstChild("RE/RegisterAttack") or net:FindFirstChild("RegisterAttack")
+            State.RegisterHit    = net:FindFirstChild("RE/RegisterHit") or net:FindFirstChild("RegisterHit")
+        end
+    end)
+end
+Core.ResolveCombatNet()
+
+function Core.GetCharacter(plr)
+    plr = plr or LocalPlayer
+    if not plr then return nil end
+
+    if plr.Character and plr.Character.Parent then
+        return plr.Character
+    end
+
+    local charsFolder = Workspace:FindFirstChild("Characters")
+    if charsFolder then
+        return charsFolder:FindFirstChild(plr.Name)
+    end
+
+    return nil
+end
+
+function Core.GetRootPart(plr)
+    local char = Core.GetCharacter(plr)
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart")
+        or char.PrimaryPart
+        or char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("LowerTorso")
+        or char:FindFirstChild("Torso")
+end
+
+function Core.GetHumanoid(plr)
+    local char = Core.GetCharacter(plr)
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+function Core.IsPlayerAlive(plr)
+    local hum = Core.GetHumanoid(plr)
+    local hrp = Core.GetRootPart(plr)
+    return (hum ~= nil and hrp ~= nil and hum.Health > 0)
+end
+
+function Core.IsHoldingSkillKey()
+    return (
+        State.IsHoldingMobileSkill or
+        UserInputService:IsKeyDown(Enum.KeyCode.Z) or
+        UserInputService:IsKeyDown(Enum.KeyCode.X) or
+        UserInputService:IsKeyDown(Enum.KeyCode.C) or
+        UserInputService:IsKeyDown(Enum.KeyCode.V) or
+        UserInputService:IsKeyDown(Enum.KeyCode.F)
+    )
+end
+
+-- Returns true while holding a move AND during the entire windup/launch animation (like CDK Z/X & Godhuman Z/C) until the attack completes
+function Core.IsSkillAimLockActive()
+    local now = os.clock()
+    if Core.IsHoldingSkillKey() or now < State.SkillAimEndTick then
+        return true
+    end
+    if (now - State.LastSkillActionTick) < 2.4 then
+        local myChar = Core.GetCharacter(LocalPlayer)
+        local myHrp  = Core.GetRootPart(LocalPlayer)
+        if myChar then
+            local busyVal = myChar:FindFirstChild("Busy")
+            if busyVal and busyVal:IsA("ValueBase") and busyVal.Value == true then
+                return true
+            end
+        end
+        if myHrp then
+            if myHrp:FindFirstChildOfClass("BodyGyro") or myHrp:FindFirstChildOfClass("AlignOrientation") or myHrp:FindFirstChildOfClass("BodyPosition") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function Core.FormatCompactNumber(n)
+    n = tonumber(n) or 0
+    if n >= 1e9 then
+        return string.format("%.2fB", n / 1e9)
+    elseif n >= 1e6 then
+        return string.format("%.2fM", n / 1e6)
+    elseif n >= 1e3 then
+        return string.format("%.1fK", n / 1e3)
+    end
+    return tostring(math.floor(n))
+end
+
+function Core.TryPortalBypass(targetPos)
+    if not Config.BypassTP or not State.CommF_ then return false end
+    local myHrp = Core.GetRootPart(LocalPlayer)
+    if not myHrp then return false end
+    local activePortalMap = State.IsSea3 and PortalLocations.Sea3 or (State.IsSea2 and PortalLocations.Sea2 or (State.IsSea1 and PortalLocations.Sea1 or nil))
+    if not activePortalMap then return false end
+
+    local currentDist = (myHrp.Position - targetPos).Magnitude
+    local bestPortalVec = nil
+    local shortestDist = currentDist
+
+    for _, portalVec in pairs(activePortalMap) do
+        local distFromPortal = (portalVec - targetPos).Magnitude
+        if (distFromPortal + 300) < shortestDist then
+            shortestDist = distFromPortal
+            bestPortalVec = portalVec
+        end
+    end
+
+    if bestPortalVec then
+        pcall(function()
+            State.CommF_:InvokeServer("requestEntrance", bestPortalVec)
+        end)
+        return true
+    end
+    return false
+end
+
+function Core.IsCallerSoruScript()
+    if os.clock() < State.NormalSoruBypassTick then
+        return true
+    end
+    local ok, callerScr = pcall(getcallingscript)
+    if ok and callerScr and typeof(callerScr) == "Instance" then
+        if callerScr.Name == "Soru" then
+            return true
+        end
+    end
+    return false
+end
+
+-- Detects Roblox's internal Camera/Control scripts so Poppercam & ClassicCamera NEVER move or zoom your screen camera
+function Core.IsCameraOrControlScript()
+    local ok, callerScr = pcall(getcallingscript)
+    if not ok or not callerScr or typeof(callerScr) ~= "Instance" then
+        return false
+    end
+    local n = callerScr.Name
+    if n == "Poppercam" or n == "ZoomController" or n == "ClassicCamera" or n == "BaseCamera" or
+       n == "CameraModule" or n == "TransparencyController" or n == "ControlModule" or
+       n == "CameraScript" or n == "OrbitalCamera" or n == "VehicleCamera" then
+        return true
+    end
+    if callerScr:FindFirstAncestor("PlayerModule") or callerScr:FindFirstAncestor("CameraScript") or callerScr:FindFirstAncestor("Chat") then
+        return true
+    end
+    return false
+end
+
+function Core.ShouldRedirectAimForCaller()
+    if Core.IsCameraOrControlScript() then
+        return false
+    end
+    if Core.IsCallerSoruScript() then
+        if not Config.SoruSilent or not SilentCache.Active then
+            return false
+        end
+        local dist = (SilentCache.TargetPos - SilentCache.OriginPos).Magnitude
+        return dist <= Config.SoruSilentRange
+    end
+    return Config.SilentAim and SilentCache.Active
+end
+
+function Core.TryExecuteSoruSilentTeleport()
+    if not Config.SoruSilent then return false end
+    if os.clock() - State.LastSoruTPExecution < 0.25 then return false end
+    local target = State.LockedTarget or State.CurrentTarget
+    if target and Core.IsPlayerAlive(target) then
+        local myHrp = Core.GetRootPart(LocalPlayer)
+        local tHrp  = Core.GetRootPart(target)
+        if myHrp and tHrp then
+            local dist = (myHrp.Position - tHrp.Position).Magnitude
+            if dist <= Config.SoruSilentRange then
+                State.LastSoruTPExecution = os.clock()
+                Core.TagPlayerInCombatWithMe(target, 65)
+                task.delay(0.03, function()
+                    if myHrp and myHrp.Parent and tHrp and tHrp.Parent then
+                        myHrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 3.5)
+                    end
+                end)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Fast O(1) SilentCache Updater with full 3D Vertical & Horizontal Prediction (tracks jumping/airborne players up & down!)
+function Core.UpdateSilentCacheFast()
+    local myHrp = Core.GetRootPart(LocalPlayer)
+    local activeTarget = State.LockedTarget or State.SkillLockedTarget or State.CurrentTarget
+    if activeTarget and not Core.IsPlayerAlive(activeTarget) then
+        State.SkillLockedTarget = nil
+        activeTarget = State.LockedTarget or State.CurrentTarget
+    end
+
+    local cam = Workspace.CurrentCamera or Camera
+    if (Config.SilentAim or Config.SoruSilent) and activeTarget and Core.IsPlayerAlive(activeTarget) and myHrp then
+        local tChar = Core.GetCharacter(activeTarget)
+        local aimPart = (tChar and tChar:FindFirstChild(Config.AimPart)) or Core.GetRootPart(activeTarget)
+        if aimPart and aimPart:IsA("BasePart") then
+            local vel = aimPart.AssemblyLinearVelocity or aimPart.Velocity or Vector3.zero
+            -- Full 3D velocity prediction so when the target jumps up/down or dashes, held moves track vertically & horizontally
+            local predVel = Vector3.new(
+                vel.X * Config.PredictionFactor,
+                math.clamp(vel.Y, -115, 115) * (Config.PredictionFactor * 0.88),
+                vel.Z * Config.PredictionFactor
+            )
+            local predPos = aimPart.Position + predVel
+            local origPos = myHrp.Position
+            local diff = predPos - origPos
+            local uDir = (diff.Magnitude > 0.001) and diff.Unit or Vector3.new(0, 0, -1)
+
+            local flatTarget = Vector3.new(predPos.X, origPos.Y, predPos.Z)
+            local flatCF = ((flatTarget - origPos).Magnitude > 0.05)
+                and CFrame.lookAt(origPos, flatTarget)
+                or CFrame.lookAt(origPos, origPos + Vector3.new(uDir.X, 0, uDir.Z))
+
+            local camPos = cam and cam.CFrame.Position or origPos
+            local camDiff = predPos - camPos
+            local camUDir = (camDiff.Magnitude > 0.001) and camDiff.Unit or uDir
+
+            SilentCache.Active           = true
+            SilentCache.TargetPos        = predPos
+            SilentCache.OriginPos        = origPos
+            SilentCache.UnitDir          = uDir
+            SilentCache.HitCFrame        = CFrame.lookAt(predPos, predPos + uDir)
+            SilentCache.OriginLookCFrame = (diff.Magnitude > 0.05) and CFrame.lookAt(origPos, predPos) or flatCF
+            SilentCache.FlatLookCFrame   = flatCF
+            SilentCache.CamLookCFrame    = (camDiff.Magnitude > 0.05) and CFrame.lookAt(camPos, predPos) or SilentCache.OriginLookCFrame
+            SilentCache.AimPart          = aimPart
+            SilentCache.CameraPos        = camPos
+            SilentCache.CamUnitDir       = camUDir
+            return true
+        end
+    end
+    SilentCache.Active = false
+    return false
+end
+
+-- Steers skill BodyGyro, AlignOrientation, Character Facing & Dash BodyVelocity (Godhuman Z/C, CDK Z/X, Tiger Z/X/C) in the background
+function Core.AlignSkillGyroToTarget()
+    if not Config.SilentAim or not SilentCache.Active then return end
+    local myChar = Core.GetCharacter(LocalPlayer)
+    local myHrp  = Core.GetRootPart(LocalPlayer)
+    if not myChar or not myHrp then return end
+
+    local tPos = SilentCache.TargetPos
+    if (tPos - myHrp.Position).Magnitude <= 0.1 then return end
+
+    local lookCF = CFrame.lookAt(myHrp.Position, tPos)
+    local flatPos = Vector3.new(tPos.X, myHrp.Position.Y, tPos.Z)
+    local flatCF  = ((flatPos - myHrp.Position).Magnitude > 0.05) and CFrame.lookAt(myHrp.Position, flatPos) or lookCF
+
+    local foundGyro = false
+    for _, child in ipairs(myHrp:GetChildren()) do
+        if child:IsA("BodyGyro") then
+            child.CFrame = lookCF
+            foundGyro = true
+        elseif child:IsA("AlignOrientation") then
+            child.CFrame = lookCF
+            foundGyro = true
+        elseif child:IsA("BodyVelocity") and not Core.IsCallerSoruScript() then
+            -- Redirect skill dash velocity (like Godhuman Z/C or CDK X) toward the moving target in 3D
+            local v = child.Velocity
+            local speed = v.Magnitude
+            local horizSpeed = Vector2.new(v.X, v.Z).Magnitude
+            if speed >= 38 and speed <= 550 and horizSpeed >= 22 then
+                local newVel = SilentCache.UnitDir * speed
+                if (newVel - v).Magnitude > 1.5 then
+                    child.Velocity = newVel
+                end
+            end
+        end
+    end
+
+    -- If the move is winding up without a BodyGyro yet (like CDK Z/X or Godhuman startup), orient HRP horizontally toward target without altering velocity
+    if not foundGyro and Core.IsSkillAimLockActive() then
+        myHrp.CFrame = flatCF
+    end
+end
+
+function Core.HookCharacterSkillMovers(char)
+    if not char then return end
+    task.spawn(function()
+        local hrp = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 8)
+        if not hrp then return end
+
+        local function InspectMover(inst)
+            if not inst or State.HookedBodyMovers[inst] then return end
+            if inst:IsA("BodyGyro") or inst:IsA("AlignOrientation") then
+                State.HookedBodyMovers[inst] = true
+                if Config.SilentAim and SilentCache.Active and Core.IsSkillAimLockActive() then
+                    inst.CFrame = CFrame.lookAt(hrp.Position, SilentCache.TargetPos)
+                end
+                inst:GetPropertyChangedSignal("CFrame"):Connect(function()
+                    if Config.SilentAim and SilentCache.Active and Core.IsSkillAimLockActive() and hrp.Parent then
+                        local desired = CFrame.lookAt(hrp.Position, SilentCache.TargetPos)
+                        if (inst.CFrame.LookVector - desired.LookVector).Magnitude > 0.02 then
+                            inst.CFrame = desired
+                        end
+                    end
+                end)
+            elseif inst:IsA("BodyVelocity") then
+                State.HookedBodyMovers[inst] = true
+                local function TryRedirectDash()
+                    if Config.SilentAim and SilentCache.Active and Core.IsSkillAimLockActive() and not Core.IsCallerSoruScript() then
+                        local v = inst.Velocity
+                        local speed = v.Magnitude
+                        local horiz = Vector2.new(v.X, v.Z).Magnitude
+                        if speed >= 38 and speed <= 550 and horiz >= 22 then
+                            local targetVel = SilentCache.UnitDir * speed
+                            if (inst.Velocity - targetVel).Magnitude > 1.5 then
+                                inst.Velocity = targetVel
+                            end
+                        end
+                    end
+                end
+                TryRedirectDash()
+                inst:GetPropertyChangedSignal("Velocity"):Connect(TryRedirectDash)
+            end
+        end
+
+        for _, child in ipairs(hrp:GetChildren()) do
+            InspectMover(child)
+        end
+        hrp.ChildAdded:Connect(InspectMover)
+
+        -- Also hook any equipped Tool so M1s & mobile skill activations lock immediately
+        local function InspectTool(tool)
+            if not tool or not tool:IsA("Tool") or State.HookedTools[tool] then return end
+            State.HookedTools[tool] = true
+            tool.Activated:Connect(function()
+                Core.TriggerSkillAimWindow(0.95)
+            end)
+        end
+        for _, child in ipairs(char:GetChildren()) do
+            InspectTool(child)
+        end
+        char.ChildAdded:Connect(InspectTool)
+    end)
+end
+
+function Core.TriggerSkillAimWindow(duration)
+    local now = os.clock()
+    State.LastSkillFireTick   = now
+    State.LastSkillActionTick = now
+    State.SkillAimEndTick     = math.max(State.SkillAimEndTick or 0, now + (duration or 1.35))
+    if State.LockedTarget or State.CurrentTarget then
+        State.SkillLockedTarget = State.LockedTarget or State.CurrentTarget
+    end
+    if Config.SilentAim then
+        Core.UpdateSilentCacheFast()
+        Core.AlignSkillGyroToTarget()
+        if State.CommE and SilentCache.Active and (now - State.LastMousePosSyncTick > 0.025) then
+            State.LastMousePosSyncTick = now
+            local targetPos = SilentCache.TargetPos
+            pcall(function()
+                State.CommE:FireServer("MousePos", targetPos)
+            end)
+        end
+    end
+end
+
+-- Caches SafeZone parts every 3 seconds so SafeZone checks take 0.001ms
+function Core.RefreshSafeZoneCache()
+    local now = os.clock()
+    if now - State.LastSafeZoneCacheTick < 3.0 and #State.CachedSafeZoneParts > 0 then
+        return
+    end
+    State.LastSafeZoneCacheTick = now
+    local list = {}
+    local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
+    local safeZones = (worldOrigin and worldOrigin:FindFirstChild("SafeZones")) or Workspace:FindFirstChild("SafeZones")
+    if safeZones then
+        for _, zone in ipairs(safeZones:GetDescendants()) do
+            if zone:IsA("BasePart") then
+                local sx, sy, sz = zone.Size.X, zone.Size.Y, zone.Size.Z
+                local mesh = zone:FindFirstChildOfClass("DataModelMesh")
+                if mesh and sx <= 4 and sz <= 4 then
+                    sx = mesh.Scale.X
+                    sy = mesh.Scale.Y
+                    sz = mesh.Scale.Z
+                end
+                table.insert(list, {
+                    Part  = zone,
+                    HalfX = sx * 0.5,
+                    HalfY = math.max(sy * 0.5, 160),
+                    HalfZ = sz * 0.5
+                })
+            end
+        end
+    end
+    State.CachedSafeZoneParts = list
+end
+
+function Core.IsPositionInSafeZone(pos)
+    Core.RefreshSafeZoneCache()
+    local zones = State.CachedSafeZoneParts
+    if #zones > 0 then
+        for i = 1, #zones do
+            local z = zones[i]
+            if z.Part and z.Part.Parent then
+                local rel = z.Part.CFrame:PointToObjectSpace(pos)
+                if math.abs(rel.X) <= z.HalfX and math.abs(rel.Z) <= z.HalfZ and math.abs(rel.Y) <= z.HalfY then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    for _, sz in ipairs(FallbackSafeZones) do
+        local flatDist = Vector2.new(pos.X - sz.Pos.X, pos.Z - sz.Pos.Z).Magnitude
+        if flatDist <= sz.Radius and math.abs(pos.Y - sz.Pos.Y) <= 180 then
+            return true
+        end
+    end
+
+    return false
+end
+
+function Core.IsLocalPlayerInCombatUI()
+    local myChar = Core.GetCharacter(LocalPlayer)
+    if myChar and (myChar:GetAttribute("InCombat") == true or myChar:FindFirstChild("InCombat")) then
+        return true
+    end
+    if LocalPlayer:GetAttribute("InCombat") == true or LocalPlayer:FindFirstChild("InCombat") then
+        return true
+    end
+    local myGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local mainGui = myGui and myGui:FindFirstChild("Main")
+    if not mainGui then return false end
+    local inCombat = mainGui:FindFirstChild("InCombat", true)
+    if inCombat and inCombat:IsA("GuiObject") and inCombat.Visible then
+        return true
+    end
+    return false
+end
+
+function Core.TagPlayerInCombatWithMe(plr, duration)
+    if not plr or plr == LocalPlayer then return end
+    local expiry = os.clock() + (duration or 65)
+    State.CombatTaggedPlayers[plr.UserId] = math.max(State.CombatTaggedPlayers[plr.UserId] or 0, expiry)
+    State.InCombatWithMe[plr.UserId] = math.max(State.InCombatWithMe[plr.UserId] or 0, expiry)
+end
+
+function Core.AttachCharacterListeners(plr, char)
+    if not plr or plr == LocalPlayer or not char then return end
+    task.spawn(function()
+        local hrp = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 8)
+        if hrp and hrp:IsA("BasePart") and hrp.Size.X > 10 then
+            hrp.Size = Vector3.new(2, 2, 1)
+        end
+
+        local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 8)
+        if hum and not State.HookedHumanoids[hum] then
+            State.HookedHumanoids[hum] = true
+            State.PlayerLastHealth[plr.UserId] = hum.Health
+            hum.HealthChanged:Connect(function(newHp)
+                local prevHp = State.PlayerLastHealth[plr.UserId] or hum.MaxHealth
+                State.PlayerLastHealth[plr.UserId] = newHp
+                if newHp <= 0 then
+                    State.CombatTaggedPlayers[plr.UserId] = nil
+                    State.InCombatWithMe[plr.UserId] = nil
+                elseif newHp < prevHp - 0.5 then
+                    local myHrp = Core.GetRootPart(LocalPlayer)
+                    local tHrp  = Core.GetRootPart(plr)
+                    if myHrp and tHrp and (myHrp.Position - tHrp.Position).Magnitude <= 1200 then
+                        Core.TagPlayerInCombatWithMe(plr, 65)
+                    else
+                        State.CombatTaggedPlayers[plr.UserId] = os.clock() + 60
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+function Core.HookPlayerTracking(plr)
+    if not plr or plr == LocalPlayer then return end
+    State.BlacklistedTargets[plr.UserId] = nil
+    task.spawn(function()
+        local isFr = false
+        pcall(function() isFr = LocalPlayer:IsFriendsWith(plr.UserId) end)
+        State.FriendCache[plr.UserId] = (isFr == true)
+    end)
+
+    local existingChar = Core.GetCharacter(plr)
+    if existingChar then
+        Core.AttachCharacterListeners(plr, existingChar)
+    end
+
+    plr.CharacterAdded:Connect(function(newChar)
+        State.BlacklistedTargets[plr.UserId] = nil
+        Core.AttachCharacterListeners(plr, newChar)
+    end)
+end
+
+for _, existingPlr in ipairs(Players:GetPlayers()) do
+    Core.HookPlayerTracking(existingPlr)
+end
+Players.PlayerAdded:Connect(Core.HookPlayerTracking)
+
+if LocalPlayer.Character then
+    Core.HookCharacterSkillMovers(LocalPlayer.Character)
+end
+
+task.spawn(function()
+    local charsFolder = Workspace:FindFirstChild("Characters") or Workspace:WaitForChild("Characters", 15)
+    if charsFolder then
+        for _, charModel in ipairs(charsFolder:GetChildren()) do
+            local p = Players:GetPlayerFromCharacter(charModel) or Players:FindFirstChild(charModel.Name)
+            if p and p ~= LocalPlayer then
+                Core.AttachCharacterListeners(p, charModel)
+            end
+        end
+        charsFolder.ChildAdded:Connect(function(charModel)
+            task.wait(0.05)
+            local p = Players:GetPlayerFromCharacter(charModel) or Players:FindFirstChild(charModel.Name)
+            if p and p ~= LocalPlayer then
+                State.BlacklistedTargets[p.UserId] = nil
+                Core.AttachCharacterListeners(p, charModel)
+            end
+        end)
+    end
+end)
+
+-- Mobile Skill "Use" Buttons & Mobile Flash Step ("Soru") Button Hooks
+function Core.HookMobileSkillButton(btn)
+    if not btn or not btn:IsA("GuiButton") or State.HookedSkillButtons[btn] then return end
+    State.HookedSkillButtons[btn] = true
+
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            State.IsHoldingMobileSkill = true
+            Core.TriggerSkillAimWindow(1.50)
+        end
+    end)
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            State.IsHoldingMobileSkill = false
+            Core.TriggerSkillAimWindow(1.35)
+        end
+    end)
+    btn.MouseButton1Down:Connect(function()
+        State.IsHoldingMobileSkill = true
+        Core.TriggerSkillAimWindow(1.50)
+    end)
+    btn.MouseButton1Up:Connect(function()
+        State.IsHoldingMobileSkill = false
+        Core.TriggerSkillAimWindow(1.35)
+    end)
+end
+
+function Core.HookMobileSoruButton(btn)
+    if not btn or not btn:IsA("GuiButton") or State.HookedSoruButtons[btn] then return end
+    State.HookedSoruButtons[btn] = true
+
+    local function OnSoruPressed()
+        if Config.SoruSilent then
+            Core.UpdateSilentCacheFast()
+            Core.TryExecuteSoruSilentTeleport()
+        else
+            State.NormalSoruBypassTick = os.clock() + 0.45
+        end
+    end
+
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            OnSoruPressed()
+        end
+    end)
+    btn.MouseButton1Down:Connect(OnSoruPressed)
+end
+
+function Core.HookMobileSkillsContainer()
+    task.spawn(function()
+        local pGui = LocalPlayer:WaitForChild("PlayerGui", 15)
+        if not pGui then return end
+        local function ScanSkillsRoot(root)
+            if not root then return end
+            for _, desc in ipairs(root:GetDescendants()) do
+                if desc:IsA("GuiButton") then
+                    Core.HookMobileSkillButton(desc)
+                end
+            end
+            root.DescendantAdded:Connect(function(desc)
+                if desc:IsA("GuiButton") then
+                    Core.HookMobileSkillButton(desc)
+                end
+            end)
+        end
+
+        local function CheckIfSoruMobileBtn(inst)
+            if not inst or not inst:IsA("GuiButton") then return end
+            local n = string.lower(inst.Name)
+            local pName = inst.Parent and string.lower(inst.Parent.Name) or ""
+            if string.find(n, "soru") or string.find(n, "flash") or string.find(pName, "soru") or string.find(pName, "flash") then
+                Core.HookMobileSoruButton(inst)
+            end
+        end
+
+        for _, desc in ipairs(pGui:GetDescendants()) do
+            CheckIfSoruMobileBtn(desc)
+        end
+        pGui.DescendantAdded:Connect(CheckIfSoruMobileBtn)
+
+        local mainGui = pGui:FindFirstChild("Main") or pGui:WaitForChild("Main", 15)
+        if mainGui then
+            local skillsFrame = mainGui:FindFirstChild("Skills") or mainGui:WaitForChild("Skills", 10)
+            if skillsFrame then
+                ScanSkillsRoot(skillsFrame)
+            end
+            mainGui.ChildAdded:Connect(function(child)
+                if child.Name == "Skills" then
+                    ScanSkillsRoot(child)
+                end
+            end)
+        end
+    end)
+end
+Core.HookMobileSkillsContainer()
+
+function Core.IsPlayerInActiveCombat(plr, char, hum)
+    if not plr or not char then return false end
+    local now = os.clock()
+    local myInCombat = Core.IsLocalPlayerInCombatUI()
+
+    local targetHasGameCombatTag = (
+        char:GetAttribute("InCombat") == true or
+        plr:GetAttribute("InCombat") == true or
+        char:FindFirstChild("InCombat") ~= nil or
+        plr:FindFirstChild("InCombat") ~= nil
+    )
+
+    if targetHasGameCombatTag then
+        State.CombatTaggedPlayers[plr.UserId] = math.max(State.CombatTaggedPlayers[plr.UserId] or 0, now + 65)
+        if myInCombat or State.CurrentTarget == plr or State.LockedTarget == plr then
+            Core.TagPlayerInCombatWithMe(plr, 65)
+        end
+        return true
+    end
+
+    if hum and hum.Health > 0 then
+        local prevHp = State.PlayerLastHealth[plr.UserId]
+        State.PlayerLastHealth[plr.UserId] = hum.Health
+        if prevHp and hum.Health < prevHp - 1 then
+            State.CombatTaggedPlayers[plr.UserId] = now + 60
+            local myHrp = Core.GetRootPart(LocalPlayer)
+            local tHrp  = Core.GetRootPart(plr)
+            if myHrp and tHrp and (myHrp.Position - tHrp.Position).Magnitude <= 1200 then
+                Core.TagPlayerInCombatWithMe(plr, 65)
+            end
+            return true
+        end
+    end
+
+    if myInCombat then
+        if State.CurrentTarget == plr or State.LockedTarget == plr or State.VisualLineTarget == plr then
+            Core.TagPlayerInCombatWithMe(plr, 65)
+            return true
+        end
+        if State.InCombatWithMe[plr.UserId] and now < State.InCombatWithMe[plr.UserId] then
+            State.InCombatWithMe[plr.UserId] = math.max(State.InCombatWithMe[plr.UserId], now + 15)
+            State.CombatTaggedPlayers[plr.UserId] = State.InCombatWithMe[plr.UserId]
+            return true
+        end
+    end
+
+    local mutualExpiry = State.InCombatWithMe[plr.UserId]
+    if mutualExpiry and now < mutualExpiry then
+        return true
+    end
+
+    local tagExpiry = State.CombatTaggedPlayers[plr.UserId]
+    if tagExpiry and now < tagExpiry then
+        return true
+    end
+
+    return false
+end
+
+function Core.IsLocalPlayerInsideSafeZone()
+    if Core.IsLocalPlayerInCombatUI() then
+        return false
+    end
+    local myChar = Core.GetCharacter(LocalPlayer)
+    if myChar then
+        if myChar:GetAttribute("InSafeZone") == true or myChar:FindFirstChild("InSafeZone") then
+            return true
+        end
+    end
+    local myGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local mainGui = myGui and myGui:FindFirstChild("Main")
+    if mainGui then
+        local szLabel = mainGui:FindFirstChild("SafeZone", true)
+        if szLabel and szLabel:IsA("GuiObject") and szLabel.Visible then
+            return true
+        end
+    end
+    return false
+end
+
+function Core.GetPlayerPvpState(plr)
+    local char = Core.GetCharacter(plr)
+    local hum  = Core.GetHumanoid(plr)
+    local hrp  = Core.GetRootPart(plr)
+    if not char or not hum or not hrp or hum.Health <= 0 then
+        if plr then
+            State.CombatTaggedPlayers[plr.UserId] = nil
+            State.InCombatWithMe[plr.UserId] = nil
+        end
+        return "Disable Pvp"
+    end
+
+    if char:FindFirstChildOfClass("ForceField") or
+       char:GetAttribute("PvpDisabled") == true or
+       plr:GetAttribute("PvpDisabled") == true or
+       char:FindFirstChild("PvpDisabled") or
+       plr:FindFirstChild("PvpDisabled") then
+        State.CombatTaggedPlayers[plr.UserId] = nil
+        State.InCombatWithMe[plr.UserId] = nil
+        return "Disable Pvp"
+    end
+
+    if Core.IsPlayerInActiveCombat(plr, char, hum) then
+        return "InCombat"
+    end
+
+    if char:GetAttribute("InSafeZone") == true or
+       plr:GetAttribute("InSafeZone") == true or
+       char:FindFirstChild("InSafeZone") or
+       char:FindFirstChild("SafeZone") or
+       Core.IsPositionInSafeZone(hrp.Position) then
+        return "Disable Pvp"
+    end
+
+    return "Ready Pvp"
+end
+
+function Core.IsPlayerKenActive(plr)
+    local char = Core.GetCharacter(plr)
+    if not char then return false end
+    if char:GetAttribute("KenActive") == true or char:GetAttribute("Observation") == true then
+        return true
+    end
+    if char:FindFirstChild("KenHaki") or char:FindFirstChild("Observation") then
+        return true
+    end
+    return false
+end
+
+function Core.GetFOVReferencePosition()
+    local cam = Workspace.CurrentCamera or Camera
+    local vpSize = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+    local center = Vector2.new(vpSize.X * 0.5, vpSize.Y * 0.5)
+
+    if Config.FOVMode == "Mouse" then
+        return UserInputService:GetMouseLocation()
+    elseif Config.FOVMode == "Target" and cam then
+        local t = State.LockedTarget or State.CurrentTarget
+        local tHrp = t and Core.GetRootPart(t)
+        if tHrp then
+            local sp, onScreen = cam:WorldToViewportPoint(tHrp.Position)
+            if onScreen then
+                return Vector2.new(sp.X, sp.Y)
+            end
+        end
+    end
+    return center
+end
+
+function Core.IsWithinFOVCircle(worldPos)
+    if Config.SilentAimMode ~= "FOV" or not Config.ShowFOV then
+        return true
+    end
+    local cam = Workspace.CurrentCamera or Camera
+    if not cam then return true end
+    local screenPos, onScreen = cam:WorldToViewportPoint(worldPos)
+    if not onScreen then return false end
+    local refCenter = Core.GetFOVReferencePosition()
+    local dist2D = (Vector2.new(screenPos.X, screenPos.Y) - refCenter).Magnitude
+    return dist2D <= (Config.FOVSize * 0.5)
+end
+
+function Core.CanTargetPlayer(plr)
+    if not plr or plr == LocalPlayer then return false, "Disable Pvp" end
+    if State.BlacklistedTargets[plr.UserId] then return false, "Disable Pvp" end
+    if not Core.IsPlayerAlive(plr) then return false, "Disable Pvp" end
+
+    if Config.SkipFriends and State.FriendCache[plr.UserId] == true then
+        return false, "Disable Pvp"
+    end
+
+    local alliedMarine = (
+        LocalPlayer.Team and plr.Team and
+        LocalPlayer.Team.Name == "Marines" and plr.Team.Name == "Marines"
+    )
+    if alliedMarine then return false, "Disable Pvp" end
+
+    local tChar = Core.GetCharacter(plr)
+    local hasV4 = tChar and (tChar:FindFirstChild("RaceTransformed") or tChar:GetAttribute("RaceTransformed") == true)
+    if Config.SkipRaceV4 and hasV4 then
+        return false, "Disable Pvp"
+    end
+
+    local pvpState = Core.GetPlayerPvpState(plr)
+    if pvpState == "Disable Pvp" then
+        return false, pvpState
+    end
+
+    return true, pvpState
+end
+
+function Core.GetAllCandidatePlayers()
+    local list = {}
+    local seen = {}
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            seen[plr] = true
+            table.insert(list, plr)
+        end
+    end
+
+    local charsFolder = Workspace:FindFirstChild("Characters")
+    if charsFolder then
+        for _, charModel in ipairs(charsFolder:GetChildren()) do
+            local plr = Players:GetPlayerFromCharacter(charModel) or Players:FindFirstChild(charModel.Name)
+            if plr and plr ~= LocalPlayer and not seen[plr] then
+                seen[plr] = true
+                table.insert(list, plr)
+            end
+        end
+    end
+
+    return list
+end
+
+function Core.GetBestTarget()
+    local myHrp = Core.GetRootPart(LocalPlayer)
+    if not myHrp then return nil end
+
+    local maxScanRange = math.max(Config.AimRange or 1500, 1500)
+
+    if State.LockedTarget then
+        local okLock, lockState = Core.CanTargetPlayer(State.LockedTarget)
+        if okLock then
+            local tHrp = Core.GetRootPart(State.LockedTarget)
+            if tHrp and (myHrp.Position - tHrp.Position).Magnitude <= maxScanRange then
+                if lockState == "InCombat" or (myHrp.Position - tHrp.Position).Magnitude <= 380 then
+                    Core.TagPlayerInCombatWithMe(State.LockedTarget, 45)
+                end
+                return State.LockedTarget
+            end
+        end
+    end
+    State.LockedTarget = nil
+
+    -- Keep the same target locked while actively holding/launching a skill so your move never switches targets mid-cast
+    if Core.IsSkillAimLockActive() and State.SkillLockedTarget then
+        local okSkillLock = Core.CanTargetPlayer(State.SkillLockedTarget)
+        if okSkillLock then
+            local tHrp = Core.GetRootPart(State.SkillLockedTarget)
+            if tHrp and (myHrp.Position - tHrp.Position).Magnitude <= maxScanRange then
+                return State.SkillLockedTarget
+            end
+        end
+    end
+    if not Core.IsSkillAimLockActive() then
+        State.SkillLockedTarget = nil
+    end
+
+    -- Fast 20Hz candidate scan cache so RenderStepped never lags
+    local now = os.clock()
+    if (now - State.LastTargetScanTick < 0.045) and State.CurrentTarget and Core.IsPlayerAlive(State.CurrentTarget) then
+        local okCur = Core.CanTargetPlayer(State.CurrentTarget)
+        if okCur then
+            return State.CurrentTarget
+        end
+    end
+    State.LastTargetScanTick = now
+
+    local bestMutualFOV     = nil
+    local shortestMutualFOV = maxScanRange
+    local bestCombatFOV     = nil
+    local shortestCombatFOV = maxScanRange
+    local bestReadyFOV      = nil
+    local shortestReadyFOV  = maxScanRange
+
+    local bestMutual360     = nil
+    local shortestMutual360 = maxScanRange
+    local bestCombat360     = nil
+    local shortestCombat360 = maxScanRange
+    local bestReady360      = nil
+    local shortestReady360  = maxScanRange
+
+    for _, plr in ipairs(Core.GetAllCandidatePlayers()) do
+        local canHit, pvpState = Core.CanTargetPlayer(plr)
+        if canHit then
+            local tHrp = Core.GetRootPart(plr)
+            if tHrp then
+                local worldDist = (myHrp.Position - tHrp.Position).Magnitude
+                if worldDist <= maxScanRange then
+                    local isMutual = (State.InCombatWithMe[plr.UserId] and now < State.InCombatWithMe[plr.UserId])
+                    local inFOV = Core.IsWithinFOVCircle(tHrp.Position)
+
+                    if inFOV then
+                        if isMutual and pvpState == "InCombat" and worldDist <= shortestMutualFOV then
+                            shortestMutualFOV = worldDist
+                            bestMutualFOV = plr
+                        elseif pvpState == "InCombat" and worldDist <= shortestCombatFOV then
+                            shortestCombatFOV = worldDist
+                            bestCombatFOV = plr
+                        elseif worldDist <= shortestReadyFOV then
+                            shortestReadyFOV = worldDist
+                            bestReadyFOV = plr
+                        end
+                    end
+
+                    if isMutual and pvpState == "InCombat" and worldDist <= shortestMutual360 then
+                        shortestMutual360 = worldDist
+                        bestMutual360 = plr
+                    elseif pvpState == "InCombat" and worldDist <= shortestCombat360 then
+                        shortestCombat360 = worldDist
+                        bestCombat360 = plr
+                    elseif worldDist <= shortestReady360 then
+                        shortestReady360 = worldDist
+                        bestReady360 = plr
+                    end
+                end
+            end
+        end
+    end
+
+    local chosen = bestMutualFOV
+        or bestCombatFOV
+        or bestReadyFOV
+        or bestMutual360
+        or bestCombat360
+        or bestReady360
+
+    if chosen then
+        local tHrp = Core.GetRootPart(chosen)
+        if tHrp and (myHrp.Position - tHrp.Position).Magnitude <= 380 then
+            State.CombatTaggedPlayers[chosen.UserId] = math.max(State.CombatTaggedPlayers[chosen.UserId] or 0, now + 45)
+        end
+    end
+
+    return chosen
+end
+
+function Core.ExecuteServerHop()
+    if os.clock() - State.LastServerHopTick < 8 then return end
+    State.LastServerHopTick = os.clock()
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet(
+            "https://games.roblox.com/v1/games/" .. tostring(State.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+        ))
+        if servers and servers.data then
+            for _, srv in ipairs(servers.data) do
+                if srv.playing < (srv.maxPlayers - 2) and srv.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(State.PlaceId, srv.id, LocalPlayer)
+                    break
+                end
+            end
+        end
+    end)
+end
+
+-- ============================================================================
+-- [SECTION 6 & 7 & 8] SCREENGUI, NOTIFICATIONS, HUD, ANIMATIONS & 6 TABS
+-- ============================================================================
+do
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Name = "HermanosDev_PVP_Hub"
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.IgnoreGuiInset = true
+    ScreenGui.DisplayOrder = 999999
+    ScreenGui.Enabled = true
+    ScreenGui.Parent = ParentGui
+    UI.ScreenGui = ScreenGui
+
+    ScreenGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+        if not ScreenGui.Enabled then
+            ScreenGui.Enabled = true
+        end
+    end)
+
+    -- 1. White Screen GPU-Saver Overlay
+    local WhiteScreenFrame = Instance.new("Frame")
+    WhiteScreenFrame.Name = "WhiteScreenOverlay"
+    WhiteScreenFrame.Size = UDim2.fromScale(1, 1)
+    WhiteScreenFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    WhiteScreenFrame.BorderSizePixel = 0
+    WhiteScreenFrame.Visible = Config.WhiteScreen
+    WhiteScreenFrame.ZIndex = 1
+    WhiteScreenFrame.Parent = ScreenGui
+    UI.WhiteScreenFrame = WhiteScreenFrame
+
+    local WhiteScreenLabel = Instance.new("TextLabel")
+    WhiteScreenLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    WhiteScreenLabel.Position = UDim2.fromScale(0.5, 0.5)
+    WhiteScreenLabel.Size = UDim2.fromOffset(420, 60)
+    WhiteScreenLabel.BackgroundTransparency = 1
+    WhiteScreenLabel.Font = Enum.Font.GothamBold
+    WhiteScreenLabel.Text = "Blox fruit-Pvp | White Screen AFK Mode Active"
+    WhiteScreenLabel.TextColor3 = Color3.fromRGB(30, 32, 38)
+    WhiteScreenLabel.TextSize = 16
+    WhiteScreenLabel.Parent = WhiteScreenFrame
+
+    -- 2. Translucent Notification Stack
+    local NotificationHolder = Instance.new("Frame")
+    NotificationHolder.Name = "NotificationHolder"
+    NotificationHolder.AnchorPoint = Vector2.new(1, 1)
+    NotificationHolder.Position = UDim2.new(1, -18, 1, -18)
+    NotificationHolder.Size = UDim2.fromOffset(260, 300)
+    NotificationHolder.BackgroundTransparency = 1
+    NotificationHolder.ZIndex = 30
+    NotificationHolder.Parent = ScreenGui
+
+    local NotifListLayout = Instance.new("UIListLayout")
+    NotifListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    NotifListLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    NotifListLayout.Padding = UDim.new(0, 8)
+    NotifListLayout.Parent = NotificationHolder
+
+    function UI.Notify(titleText, bodyText, duration)
+        duration = duration or 3
+        task.spawn(function()
+            local notifCard = Instance.new("Frame")
+            notifCard.Size = UDim2.new(1, 0, 0, 54)
+            notifCard.BackgroundColor3 = Theme.WindowBg
+            notifCard.BackgroundTransparency = 0.12
+            notifCard.ZIndex = 31
+            notifCard.Parent = NotificationHolder
+
+            local notifScale = Instance.new("UIScale")
+            notifScale.Scale = 0.85
+            notifScale.Parent = notifCard
+
+            local nCorner = Instance.new("UICorner")
+            nCorner.CornerRadius = UDim.new(0, 8)
+            nCorner.Parent = notifCard
+
+            local nStroke = Instance.new("UIStroke")
+            nStroke.Color = Theme.CheckboxOn
+            nStroke.Thickness = 1
+            nStroke.Transparency = 0.25
+            nStroke.Parent = notifCard
+
+            local nIcon = Instance.new("ImageLabel")
+            nIcon.AnchorPoint = Vector2.new(0, 0.5)
+            nIcon.Position = UDim2.new(0, 12, 0.5, 0)
+            nIcon.Size = UDim2.fromOffset(18, 18)
+            nIcon.BackgroundTransparency = 1
+            nIcon.Image = LucideIcons.Bell
+            nIcon.ImageColor3 = Theme.CheckboxOn
+            nIcon.ZIndex = 32
+            nIcon.Parent = notifCard
+
+            local nTitle = Instance.new("TextLabel")
+            nTitle.Position = UDim2.new(0, 38, 0, 8)
+            nTitle.Size = UDim2.new(1, -46, 0, 16)
+            nTitle.BackgroundTransparency = 1
+            nTitle.Font = Enum.Font.GothamBold
+            nTitle.Text = tostring(titleText)
+            nTitle.TextColor3 = Theme.TextPrimary
+            nTitle.TextSize = 12
+            nTitle.TextXAlignment = Enum.TextXAlignment.Left
+            nTitle.ZIndex = 32
+            nTitle.Parent = notifCard
+
+            local nBody = Instance.new("TextLabel")
+            nBody.Position = UDim2.new(0, 38, 0, 26)
+            nBody.Size = UDim2.new(1, -46, 0, 20)
+            nBody.BackgroundTransparency = 1
+            nBody.Font = Enum.Font.Gotham
+            nBody.Text = tostring(bodyText)
+            nBody.TextColor3 = Theme.TextSecondary
+            nBody.TextSize = 11
+            nBody.TextWrapped = true
+            nBody.TextXAlignment = Enum.TextXAlignment.Left
+            nBody.ZIndex = 32
+            nBody.Parent = notifCard
+
+            TweenService:Create(notifScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+            task.wait(duration)
+            TweenService:Create(notifScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
+            TweenService:Create(notifCard, TweenInfo.new(0.20), { BackgroundTransparency = 1 }):Play()
+            TweenService:Create(nTitle, TweenInfo.new(0.20), { TextTransparency = 1 }):Play()
+            TweenService:Create(nBody, TweenInfo.new(0.20), { TextTransparency = 1 }):Play()
+            TweenService:Create(nIcon, TweenInfo.new(0.20), { ImageTransparency = 1 }):Play()
+            TweenService:Create(nStroke, TweenInfo.new(0.20), { Transparency = 1 }):Play()
+            task.wait(0.22)
+            notifCard:Destroy()
+        end)
+    end
+
+    -- 3. Ultra-Thin Locked-Center Yellow FOV Circle Overlay
+    local FOVCircleFrame = Instance.new("Frame")
+    FOVCircleFrame.Name = "FOVCircle"
+    FOVCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    FOVCircleFrame.Position = UDim2.fromScale(0.5, 0.5)
+    FOVCircleFrame.Size = UDim2.fromOffset(Config.FOVSize, Config.FOVSize)
+    FOVCircleFrame.BackgroundTransparency = 1
+    FOVCircleFrame.Visible = Config.ShowFOV
+    FOVCircleFrame.ZIndex = 25
+    FOVCircleFrame.Parent = ScreenGui
+    UI.FOVCircleFrame = FOVCircleFrame
+
+    local FOVCorner = Instance.new("UICorner")
+    FOVCorner.CornerRadius = UDim.new(1, 0)
+    FOVCorner.Parent = FOVCircleFrame
+
+    local FOVStroke = Instance.new("UIStroke")
+    FOVStroke.Color = Theme.FovYellow
+    FOVStroke.Thickness = 0.9
+    FOVStroke.Transparency = 0.05
+    FOVStroke.Parent = FOVCircleFrame
+
+    -- 4. Top-Center "Blox fruit-Pvp" Banner Pill
+    local TopBannerPill = Instance.new("TextButton")
+    TopBannerPill.Name = "TopBannerPill"
+    TopBannerPill.AnchorPoint = Vector2.new(0.5, 0)
+    TopBannerPill.Position = UDim2.new(0.5, 0, 0, 6)
+    TopBannerPill.Size = UDim2.fromOffset(250, 34)
+    TopBannerPill.BackgroundColor3 = Color3.fromRGB(22, 23, 28)
+    TopBannerPill.BackgroundTransparency = 0.12
+    TopBannerPill.AutoButtonColor = false
+    TopBannerPill.Active = true
+    TopBannerPill.Text = ""
+    TopBannerPill.ZIndex = 8
+    TopBannerPill.Parent = ScreenGui
+
+    local TopBannerScale = Instance.new("UIScale")
+    TopBannerScale.Scale = 1
+    TopBannerScale.Parent = TopBannerPill
+
+    local TopBannerCorner = Instance.new("UICorner")
+    TopBannerCorner.CornerRadius = UDim.new(1, 0)
+    TopBannerCorner.Parent = TopBannerPill
+
+    local TopBannerStroke = Instance.new("UIStroke")
+    TopBannerStroke.Color = Color3.fromRGB(215, 28, 34)
+    TopBannerStroke.Thickness = 1.3
+    TopBannerStroke.Parent = TopBannerPill
+
+    local TopBannerMoveIcon = Instance.new("TextLabel")
+    TopBannerMoveIcon.AnchorPoint = Vector2.new(0, 0.5)
+    TopBannerMoveIcon.Position = UDim2.new(0, 14, 0.5, 0)
+    TopBannerMoveIcon.Size = UDim2.fromOffset(18, 18)
+    TopBannerMoveIcon.BackgroundTransparency = 1
+    TopBannerMoveIcon.Font = Enum.Font.GothamBold
+    TopBannerMoveIcon.Text = "+"
+    TopBannerMoveIcon.TextColor3 = Theme.TextSecondary
+    TopBannerMoveIcon.TextSize = 14
+    TopBannerMoveIcon.ZIndex = 9
+    TopBannerMoveIcon.Parent = TopBannerPill
+
+    local TopBannerTitle = Instance.new("TextLabel")
+    TopBannerTitle.AnchorPoint = Vector2.new(0.5, 0.5)
+    TopBannerTitle.Position = UDim2.new(0.56, 0, 0.5, 0)
+    TopBannerTitle.Size = UDim2.fromOffset(180, 20)
+    TopBannerTitle.BackgroundTransparency = 1
+    TopBannerTitle.Font = Enum.Font.GothamBold
+    TopBannerTitle.Text = "Blox fruit-Pvp"
+    TopBannerTitle.TextColor3 = Theme.TextPrimary
+    TopBannerTitle.TextSize = 13
+    TopBannerTitle.ZIndex = 9
+    TopBannerTitle.Parent = TopBannerPill
+
+    -- 5. Fixed Left HUD Buttons (Camera Lock & TP To Target)
+    local FixedHudPanel = Instance.new("Frame")
+    FixedHudPanel.Name = "FixedHermanosQuickHUD"
+    FixedHudPanel.Position = UDim2.new(0, 14, 0, 56)
+    FixedHudPanel.Size = UDim2.fromOffset(102, 62)
+    FixedHudPanel.BackgroundTransparency = 1
+    FixedHudPanel.ZIndex = 15
+    FixedHudPanel.Parent = ScreenGui
+
+    local function CreateFixedQuickBtn(name, labelText, yOffset, onClickCallback)
+        local btn = Instance.new("TextButton")
+        btn.Name = name
+        btn.Position = UDim2.fromOffset(0, yOffset)
+        btn.Size = UDim2.fromOffset(102, 27)
+        btn.BackgroundColor3 = Theme.HudButtonBg
+        btn.BackgroundTransparency = Theme.HudButtonTrans
+        btn.AutoButtonColor = false
+        btn.Active = true
+        btn.Draggable = false
+        btn.Font = Enum.Font.GothamBold
+        btn.Text = labelText
+        btn.TextColor3 = Theme.HudRedText
+        btn.TextSize = 11
+        btn.ZIndex = 15
+        btn.Parent = FixedHudPanel
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = btn
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.fromRGB(52, 55, 64)
+        stroke.Thickness = 1
+        stroke.Transparency = 0.25
+        stroke.Parent = btn
+
+        btn.MouseButton1Click:Connect(function()
+            onClickCallback(btn, stroke)
+        end)
+
+        return btn, stroke
+    end
+
+    local CamLockBtn, CamLockStroke = CreateFixedQuickBtn(
+        "CameraLockButton",
+        "Camera Lock",
+        0,
+        function(btn, stroke)
+            Config.CameraLock = not Config.CameraLock
+            if UI.CamLockToggleRef then
+                UI.CamLockToggleRef.Set(Config.CameraLock, false)
+            end
+            if Config.CameraLock then
+                State.LockedTarget = Core.GetBestTarget()
+                if State.LockedTarget then
+                    Core.TagPlayerInCombatWithMe(State.LockedTarget, 65)
+                end
+                stroke.Color = Theme.HudRedText
+                stroke.Transparency = 0
+                btn.TextColor3 = Color3.fromRGB(255, 215, 55)
+                UI.Notify("Camera Lock", State.LockedTarget and ("Locked: " .. State.LockedTarget.Name) or "Camera Lock ON", 2)
+            else
+                State.LockedTarget = nil
+                stroke.Color = Color3.fromRGB(52, 55, 64)
+                stroke.Transparency = 0.25
+                btn.TextColor3 = Theme.HudRedText
+                UI.Notify("Camera Lock", "Camera Lock OFF", 2)
+            end
+        end
+    )
+    UI.CamLockBtn    = CamLockBtn
+    UI.CamLockStroke = CamLockStroke
+
+    CreateFixedQuickBtn(
+        "TPToTargetButton",
+        "TP To Target",
+        33,
+        function(_, stroke)
+            local target = State.LockedTarget or State.CurrentTarget or Core.GetBestTarget()
+            if target and Core.IsPlayerAlive(target) then
+                local myHrp = Core.GetRootPart(LocalPlayer)
+                local tHrp  = Core.GetRootPart(target)
+                if myHrp and tHrp then
+                    Core.TagPlayerInCombatWithMe(target, 65)
+                    stroke.Color = Theme.CheckboxOn
+                    Core.TryPortalBypass(tHrp.Position)
+                    myHrp.CFrame = tHrp.CFrame * CFrame.new(0, Config.TeleportOffsetY, Config.TeleportOffsetZ)
+                    task.delay(0.25, function()
+                        stroke.Color = Color3.fromRGB(52, 55, 64)
+                    end)
+                end
+            else
+                UI.Notify("TP To Target", "No valid PvP target nearby", 2)
+            end
+        end
+    )
+
+    if Config.CameraLock then
+        CamLockStroke.Color = Theme.HudRedText
+        CamLockStroke.Transparency = 0
+        CamLockBtn.TextColor3 = Color3.fromRGB(255, 215, 55)
+    end
+
+    -- 6. Centered Middle Floating Toggle Button with YELLOW & RED "V" Emblem
+    local FloatingToggleBtn = Instance.new("TextButton")
+    FloatingToggleBtn.Name = "FloatingToggleIcon"
+    FloatingToggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+    FloatingToggleBtn.Position = UDim2.new(0.5, 0, 0, 24)
+    FloatingToggleBtn.Size = UDim2.fromOffset(42, 42)
+    FloatingToggleBtn.BackgroundColor3 = Color3.fromRGB(16, 17, 22)
+    FloatingToggleBtn.BackgroundTransparency = 0.04
+    FloatingToggleBtn.Text = ""
+    FloatingToggleBtn.ZIndex = 28
+    FloatingToggleBtn.Parent = ScreenGui
+
+    local FloatingToggleScale = Instance.new("UIScale")
+    FloatingToggleScale.Scale = 1
+    FloatingToggleScale.Parent = FloatingToggleBtn
+
+    local FloatCorner = Instance.new("UICorner")
+    FloatCorner.CornerRadius = UDim.new(0, 10)
+    FloatCorner.Parent = FloatingToggleBtn
+
+    local FloatStroke = Instance.new("UIStroke")
+    FloatStroke.Color = Color3.fromRGB(205, 28, 34)
+    FloatStroke.Thickness = 1.6
+    FloatStroke.Parent = FloatingToggleBtn
+
+    local VInnerBox = Instance.new("Frame")
+    VInnerBox.AnchorPoint = Vector2.new(0.5, 0.5)
+    VInnerBox.Position = UDim2.fromScale(0.5, 0.5)
+    VInnerBox.Size = UDim2.fromOffset(32, 32)
+    VInnerBox.BackgroundColor3 = Color3.fromRGB(28, 14, 16)
+    VInnerBox.ZIndex = 29
+    VInnerBox.Parent = FloatingToggleBtn
+
+    local VInnerCorner = Instance.new("UICorner")
+    VInnerCorner.CornerRadius = UDim.new(0, 8)
+    VInnerCorner.Parent = VInnerBox
+
+    local VRedShadow = Instance.new("TextLabel")
+    VRedShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    VRedShadow.Position = UDim2.new(0.5, 1, 0.5, 2)
+    VRedShadow.Size = UDim2.fromScale(1, 1)
+    VRedShadow.BackgroundTransparency = 1
+    VRedShadow.Font = Enum.Font.GothamBlack
+    VRedShadow.Text = "V"
+    VRedShadow.TextColor3 = Color3.fromRGB(230, 28, 34)
+    VRedShadow.TextSize = 24
+    VRedShadow.ZIndex = 30
+    VRedShadow.Parent = VInnerBox
+
+    local VYellowMain = Instance.new("TextLabel")
+    VYellowMain.AnchorPoint = Vector2.new(0.5, 0.5)
+    VYellowMain.Position = UDim2.fromScale(0.5, 0.48)
+    VYellowMain.Size = UDim2.fromScale(1, 1)
+    VYellowMain.BackgroundTransparency = 1
+    VYellowMain.Font = Enum.Font.GothamBlack
+    VYellowMain.Text = "V"
+    VYellowMain.TextColor3 = Color3.fromRGB(255, 220, 35)
+    VYellowMain.TextSize = 23
+    VYellowMain.ZIndex = 31
+    VYellowMain.Parent = VInnerBox
+
+    local VGrad = Instance.new("UIGradient")
+    VGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 65)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(255, 170, 25)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(235, 30, 35))
+    })
+    VGrad.Rotation = 90
+    VGrad.Parent = VYellowMain
+
+    -- 7. Main Translucent Window Frame + Pop-Up & Close Animation
+    local NormalWindowSize = UDim2.fromOffset(550, 350)
+    local MaxWindowSize    = UDim2.fromOffset(680, 430)
+
+    local MainWindow = Instance.new("Frame")
+    MainWindow.Name = "MainWindow"
+    MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
+    MainWindow.Position = UDim2.fromScale(0.50, 0.52)
+    MainWindow.Size = Config.UI_Maximized and MaxWindowSize or NormalWindowSize
+    MainWindow.BackgroundColor3 = Theme.WindowBg
+    MainWindow.BackgroundTransparency = Theme.WindowTrans
+    MainWindow.ClipsDescendants = true
+    MainWindow.Visible = Config.UI_Visible
+    MainWindow.ZIndex = 10
+    MainWindow.Parent = ScreenGui
+    UI.MainWindow = MainWindow
+
+    local MainWindowScale = Instance.new("UIScale")
+    MainWindowScale.Scale = Config.UI_Visible and 1.0 or 0.82
+    MainWindowScale.Parent = MainWindow
+
+    local MainWindowCorner = Instance.new("UICorner")
+    MainWindowCorner.CornerRadius = UDim.new(0, 10)
+    MainWindowCorner.Parent = MainWindow
+
+    local MainWindowStroke = Instance.new("UIStroke")
+    MainWindowStroke.Color = Color3.fromRGB(58, 62, 72)
+    MainWindowStroke.Thickness = 1
+    MainWindowStroke.Transparency = 0.25
+    MainWindowStroke.Parent = MainWindow
+
+    local WatermarkWeb = Instance.new("ImageLabel")
+    WatermarkWeb.Name = "SpiderWebWatermark"
+    WatermarkWeb.AnchorPoint = Vector2.new(0.5, 0.5)
+    WatermarkWeb.Position = UDim2.fromScale(0.46, 0.52)
+    WatermarkWeb.Size = UDim2.fromOffset(240, 240)
+    WatermarkWeb.BackgroundTransparency = 1
+    WatermarkWeb.Image = LucideIcons.SpiderWeb
+    WatermarkWeb.ImageColor3 = Color3.fromRGB(200, 205, 215)
+    WatermarkWeb.ImageTransparency = 0.90
+    WatermarkWeb.ZIndex = 10
+    WatermarkWeb.Parent = MainWindow
+
+    local winAnimToken = 0
+    local scaleTween, bgTween, strokeTween = nil, nil, nil
+
+    function UI.SetMainWindowOpen(shouldOpen)
+        winAnimToken += 1
+        local myToken = winAnimToken
+        Config.UI_Visible = shouldOpen
+
+        if scaleTween then pcall(function() scaleTween:Cancel() end) end
+        if bgTween then pcall(function() bgTween:Cancel() end) end
+        if strokeTween then pcall(function() strokeTween:Cancel() end) end
+
+        TweenService:Create(FloatingToggleScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.88 }):Play()
+        TweenService:Create(TopBannerScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.95 }):Play()
+        task.delay(0.08, function()
+            TweenService:Create(FloatingToggleScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+            TweenService:Create(TopBannerScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        end)
+
+        if shouldOpen then
+            if not MainWindow.Visible then
+                MainWindowScale.Scale = 0.82
+                MainWindow.BackgroundTransparency = 0.85
+                MainWindowStroke.Transparency = 0.90
+                MainWindow.Visible = true
+            end
+            scaleTween = TweenService:Create(MainWindowScale, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.0 })
+            bgTween = TweenService:Create(MainWindow, TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { BackgroundTransparency = Theme.WindowTrans })
+            strokeTween = TweenService:Create(MainWindowStroke, TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Transparency = 0.25 })
+            scaleTween:Play()
+            bgTween:Play()
+            strokeTween:Play()
+        else
+            scaleTween = TweenService:Create(MainWindowScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.82 })
+            bgTween = TweenService:Create(MainWindow, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 0.92 })
+            strokeTween = TweenService:Create(MainWindowStroke, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1.0 })
+            scaleTween:Play()
+            bgTween:Play()
+            strokeTween:Play()
+
+            task.delay(0.18, function()
+                if winAnimToken == myToken and not Config.UI_Visible then
+                    MainWindow.Visible = false
+                end
+            end)
+        end
+    end
+
+    function UI.ToggleMainWindow()
+        UI.SetMainWindowOpen(not Config.UI_Visible)
+    end
+
+    local function BindDraggableGuiToggle(guiButton)
+        local dragging, dragStart, startPos, moved = false, nil, nil, false
+        guiButton.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                moved = false
+                dragStart = input.Position
+                startPos = guiButton.Position
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                if delta.Magnitude > 6 then
+                    moved = true
+                    guiButton.Position = UDim2.new(
+                        startPos.X.Scale,
+                        startPos.X.Offset + delta.X,
+                        startPos.Y.Scale,
+                        startPos.Y.Offset + delta.Y
+                    )
+                end
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if dragging and not moved then
+                    UI.ToggleMainWindow()
+                end
+                dragging = false
+            end
+        end)
+    end
+
+    BindDraggableGuiToggle(FloatingToggleBtn)
+    BindDraggableGuiToggle(TopBannerPill)
+
+    -- Header Bar
+    local HeaderBar = Instance.new("Frame")
+    HeaderBar.Name = "HeaderBar"
+    HeaderBar.Size = UDim2.new(1, 0, 0, 44)
+    HeaderBar.BackgroundColor3 = Theme.HeaderBg
+    HeaderBar.BackgroundTransparency = Theme.HeaderTrans
+    HeaderBar.BorderSizePixel = 0
+    HeaderBar.ZIndex = 12
+    HeaderBar.Parent = MainWindow
+
+    local HeaderCorner = Instance.new("UICorner")
+    HeaderCorner.CornerRadius = UDim.new(0, 10)
+    HeaderCorner.Parent = HeaderBar
+
+    local HeaderDivider = Instance.new("Frame")
+    HeaderDivider.Position = UDim2.new(0, 0, 1, -1)
+    HeaderDivider.Size = UDim2.new(1, 0, 0, 1)
+    HeaderDivider.BackgroundColor3 = Color3.fromRGB(48, 52, 62)
+    HeaderDivider.BackgroundTransparency = 0.4
+    HeaderDivider.BorderSizePixel = 0
+    HeaderDivider.ZIndex = 12
+    HeaderDivider.Parent = HeaderBar
+
+    local LogoBox = Instance.new("Frame")
+    LogoBox.AnchorPoint = Vector2.new(0, 0.5)
+    LogoBox.Position = UDim2.new(0, 12, 0.5, 0)
+    LogoBox.Size = UDim2.fromOffset(24, 24)
+    LogoBox.BackgroundColor3 = Color3.fromRGB(30, 18, 20)
+    LogoBox.ZIndex = 13
+    LogoBox.Parent = HeaderBar
+
+    local LogoCorner = Instance.new("UICorner")
+    LogoCorner.CornerRadius = UDim.new(0, 6)
+    LogoCorner.Parent = LogoBox
+
+    local LogoStroke = Instance.new("UIStroke")
+    LogoStroke.Color = Color3.fromRGB(225, 35, 35)
+    LogoStroke.Thickness = 1.2
+    LogoStroke.Parent = LogoBox
+
+    local LogoVLabel = Instance.new("TextLabel")
+    LogoVLabel.Size = UDim2.fromScale(1, 1)
+    LogoVLabel.BackgroundTransparency = 1
+    LogoVLabel.Font = Enum.Font.GothamBlack
+    LogoVLabel.Text = "V"
+    LogoVLabel.TextColor3 = Color3.fromRGB(255, 215, 35)
+    LogoVLabel.TextSize = 14
+    LogoVLabel.ZIndex = 14
+    LogoVLabel.Parent = LogoBox
+
+    local HeaderTitle = Instance.new("TextLabel")
+    HeaderTitle.Position = UDim2.new(0, 44, 0, 6)
+    HeaderTitle.Size = UDim2.new(0, 190, 0, 17)
+    HeaderTitle.BackgroundTransparency = 1
+    HeaderTitle.Font = Enum.Font.GothamBold
+    HeaderTitle.Text = "Blox fruit-Pvp"
+    HeaderTitle.TextColor3 = Theme.TextPrimary
+    HeaderTitle.TextSize = 13
+    HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderTitle.ZIndex = 13
+    HeaderTitle.Parent = HeaderBar
+
+    local HeaderSubtitle = Instance.new("TextLabel")
+    HeaderSubtitle.Position = UDim2.new(0, 44, 0, 23)
+    HeaderSubtitle.Size = UDim2.new(0, 205, 0, 14)
+    HeaderSubtitle.BackgroundTransparency = 1
+    HeaderSubtitle.Font = Enum.Font.GothamMedium
+    HeaderSubtitle.Text = "Blox Fruit | Boblox-Script.com"
+    HeaderSubtitle.TextColor3 = Theme.TextSecondary
+    HeaderSubtitle.TextSize = 10
+    HeaderSubtitle.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderSubtitle.ZIndex = 13
+    HeaderSubtitle.Parent = HeaderBar
+
+    local FreeBadge = Instance.new("Frame")
+    FreeBadge.AnchorPoint = Vector2.new(1, 0.5)
+    FreeBadge.Position = UDim2.new(1, -150, 0.5, 0)
+    FreeBadge.Size = UDim2.fromOffset(66, 22)
+    FreeBadge.BackgroundColor3 = Theme.FreeBadgeRed
+    FreeBadge.ZIndex = 13
+    FreeBadge.Parent = HeaderBar
+
+    local FreeBadgeCorner = Instance.new("UICorner")
+    FreeBadgeCorner.CornerRadius = UDim.new(1, 0)
+    FreeBadgeCorner.Parent = FreeBadge
+
+    local FreeBadgeIcon = Instance.new("ImageLabel")
+    FreeBadgeIcon.AnchorPoint = Vector2.new(0, 0.5)
+    FreeBadgeIcon.Position = UDim2.new(0, 7, 0.5, 0)
+    FreeBadgeIcon.Size = UDim2.fromOffset(12, 12)
+    FreeBadgeIcon.BackgroundTransparency = 1
+    FreeBadgeIcon.Image = LucideIcons.Flame
+    FreeBadgeIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    FreeBadgeIcon.ZIndex = 14
+    FreeBadgeIcon.Parent = FreeBadge
+
+    local FreeBadgeText = Instance.new("TextLabel")
+    FreeBadgeText.Position = UDim2.new(0, 22, 0, 0)
+    FreeBadgeText.Size = UDim2.new(1, -24, 1, 0)
+    FreeBadgeText.BackgroundTransparency = 1
+    FreeBadgeText.Font = Enum.Font.GothamBold
+    FreeBadgeText.Text = "FREE"
+    FreeBadgeText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FreeBadgeText.TextSize = 10
+    FreeBadgeText.TextXAlignment = Enum.TextXAlignment.Left
+    FreeBadgeText.ZIndex = 14
+    FreeBadgeText.Parent = FreeBadge
+
+    local DiscordBtn = Instance.new("TextButton")
+    DiscordBtn.AnchorPoint = Vector2.new(1, 0.5)
+    DiscordBtn.Position = UDim2.new(1, -80, 0.5, 0)
+    DiscordBtn.Size = UDim2.fromOffset(64, 22)
+    DiscordBtn.BackgroundColor3 = Theme.DiscordPillBg
+    DiscordBtn.AutoButtonColor = true
+    DiscordBtn.Text = ""
+    DiscordBtn.ZIndex = 13
+    DiscordBtn.Parent = HeaderBar
+
+    local DiscordCorner = Instance.new("UICorner")
+    DiscordCorner.CornerRadius = UDim.new(1, 0)
+    DiscordCorner.Parent = DiscordBtn
+
+    local DiscordIcon = Instance.new("ImageLabel")
+    DiscordIcon.AnchorPoint = Vector2.new(0, 0.5)
+    DiscordIcon.Position = UDim2.new(0, 7, 0.5, 0)
+    DiscordIcon.Size = UDim2.fromOffset(11, 11)
+    DiscordIcon.BackgroundTransparency = 1
+    DiscordIcon.Image = LucideIcons.Link
+    DiscordIcon.ImageColor3 = Theme.DiscordText
+    DiscordIcon.ZIndex = 14
+    DiscordIcon.Parent = DiscordBtn
+
+    local DiscordLabel = Instance.new("TextLabel")
+    DiscordLabel.Position = UDim2.new(0, 20, 0, 0)
+    DiscordLabel.Size = UDim2.new(1, -22, 1, 0)
+    DiscordLabel.BackgroundTransparency = 1
+    DiscordLabel.Font = Enum.Font.GothamBold
+    DiscordLabel.Text = "discord."
+    DiscordLabel.TextColor3 = Theme.DiscordText
+    DiscordLabel.TextSize = 10
+    DiscordLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DiscordLabel.ZIndex = 14
+    DiscordLabel.Parent = DiscordBtn
+
+    DiscordBtn.MouseButton1Click:Connect(function()
+        setclipboard("https://discord.gg/tgnNk89jdc")
+        DiscordLabel.Text = "copied!"
+        UI.Notify("Blox fruit-Pvp Discord", "Invite copied to clipboard!", 2.5)
+        task.delay(1.2, function()
+            DiscordLabel.Text = "discord."
+        end)
+    end)
+
+    local function CreateWinCtrlBtn(iconId, rightOffset, callback)
+        local btn = Instance.new("TextButton")
+        btn.AnchorPoint = Vector2.new(1, 0.5)
+        btn.Position = UDim2.new(1, rightOffset, 0.5, 0)
+        btn.Size = UDim2.fromOffset(20, 20)
+        btn.BackgroundTransparency = 1
+        btn.Text = ""
+        btn.ZIndex = 14
+        btn.Parent = HeaderBar
+
+        local ico = Instance.new("ImageLabel")
+        ico.AnchorPoint = Vector2.new(0.5, 0.5)
+        ico.Position = UDim2.fromScale(0.5, 0.5)
+        ico.Size = UDim2.fromOffset(13, 13)
+        ico.BackgroundTransparency = 1
+        ico.Image = iconId
+        ico.ImageColor3 = Theme.TextSecondary
+        ico.ZIndex = 14
+        ico.Parent = btn
+
+        btn.MouseButton1Click:Connect(callback)
+        return btn
+    end
+
+    CreateWinCtrlBtn(LucideIcons.Minus, -52, function()
+        UI.SetMainWindowOpen(false)
+    end)
+
+    CreateWinCtrlBtn(LucideIcons.Maximize, -30, function()
+        Config.UI_Maximized = not Config.UI_Maximized
+        TweenService:Create(MainWindow, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = Config.UI_Maximized and MaxWindowSize or NormalWindowSize
+        }):Play()
+    end)
+
+    CreateWinCtrlBtn(LucideIcons.Close, -8, function()
+        UI.SetMainWindowOpen(false)
+    end)
+
+    do
+        local wDragging, wDragStart, wStartPos = false, nil, nil
+        HeaderBar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                wDragging = true
+                wDragStart = input.Position
+                wStartPos = MainWindow.Position
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if wDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - wDragStart
+                MainWindow.Position = UDim2.new(
+                    wStartPos.X.Scale,
+                    wStartPos.X.Offset + delta.X,
+                    wStartPos.Y.Scale,
+                    wStartPos.Y.Offset + delta.Y
+                )
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                wDragging = false
+            end
+        end)
+    end
+
+    -- Sidebar & Search Bar
+    local SidebarFrame = Instance.new("Frame")
+    SidebarFrame.Name = "Sidebar"
+    SidebarFrame.Position = UDim2.new(0, 0, 0, 44)
+    SidebarFrame.Size = UDim2.new(0, 155, 1, -44)
+    SidebarFrame.BackgroundColor3 = Theme.SidebarBg
+    SidebarFrame.BackgroundTransparency = Theme.SidebarTrans
+    SidebarFrame.BorderSizePixel = 0
+    SidebarFrame.ZIndex = 11
+    SidebarFrame.Parent = MainWindow
+
+    local SidebarDivider = Instance.new("Frame")
+    SidebarDivider.Position = UDim2.new(1, -1, 0, 0)
+    SidebarDivider.Size = UDim2.new(0, 1, 1, 0)
+    SidebarDivider.BackgroundColor3 = Color3.fromRGB(48, 52, 62)
+    SidebarDivider.BackgroundTransparency = 0.45
+    SidebarDivider.BorderSizePixel = 0
+    SidebarDivider.ZIndex = 12
+    SidebarDivider.Parent = SidebarFrame
+
+    local SearchContainer = Instance.new("Frame")
+    SearchContainer.Position = UDim2.new(0, 10, 0, 10)
+    SearchContainer.Size = UDim2.new(1, -20, 0, 30)
+    SearchContainer.BackgroundColor3 = Color3.fromRGB(30, 32, 38)
+    SearchContainer.BackgroundTransparency = 0.25
+    SearchContainer.ZIndex = 12
+    SearchContainer.Parent = SidebarFrame
+
+    local SearchCorner = Instance.new("UICorner")
+    SearchCorner.CornerRadius = UDim.new(0, 7)
+    SearchCorner.Parent = SearchContainer
+
+    local SearchStroke = Instance.new("UIStroke")
+    SearchStroke.Color = Color3.fromRGB(58, 62, 72)
+    SearchStroke.Thickness = 1
+    SearchStroke.Transparency = 0.35
+    SearchStroke.Parent = SearchContainer
+
+    local SearchIcon = Instance.new("ImageLabel")
+    SearchIcon.AnchorPoint = Vector2.new(0, 0.5)
+    SearchIcon.Position = UDim2.new(0, 8, 0.5, 0)
+    SearchIcon.Size = UDim2.fromOffset(13, 13)
+    SearchIcon.BackgroundTransparency = 1
+    SearchIcon.Image = LucideIcons.Search
+    SearchIcon.ImageColor3 = Theme.TextSecondary
+    SearchIcon.ZIndex = 13
+    SearchIcon.Parent = SearchContainer
+
+    local SearchTextBox = Instance.new("TextBox")
+    SearchTextBox.Position = UDim2.new(0, 26, 0, 0)
+    SearchTextBox.Size = UDim2.new(1, -30, 1, 0)
+    SearchTextBox.BackgroundTransparency = 1
+    SearchTextBox.Font = Enum.Font.Gotham
+    SearchTextBox.PlaceholderText = "Search"
+    SearchTextBox.PlaceholderColor3 = Theme.TextSecondary
+    SearchTextBox.Text = ""
+    SearchTextBox.TextColor3 = Theme.TextPrimary
+    SearchTextBox.TextSize = 12
+    SearchTextBox.TextXAlignment = Enum.TextXAlignment.Left
+    SearchTextBox.ClearTextOnFocus = false
+    SearchTextBox.ZIndex = 13
+    SearchTextBox.Parent = SearchContainer
+
+    local NavScroll = Instance.new("ScrollingFrame")
+    NavScroll.Position = UDim2.new(0, 8, 0, 48)
+    NavScroll.Size = UDim2.new(1, -16, 1, -54)
+    NavScroll.BackgroundTransparency = 1
+    NavScroll.BorderSizePixel = 0
+    NavScroll.ScrollBarThickness = 2
+    NavScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 85, 98)
+    NavScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    NavScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    NavScroll.ZIndex = 12
+    NavScroll.Parent = SidebarFrame
+
+    local NavListLayout = Instance.new("UIListLayout")
+    NavListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    NavListLayout.Padding = UDim.new(0, 3)
+    NavListLayout.Parent = NavScroll
+
+    local ContentContainer = Instance.new("Frame")
+    ContentContainer.Name = "ContentArea"
+    ContentContainer.Position = UDim2.new(0, 155, 0, 44)
+    ContentContainer.Size = UDim2.new(1, -155, 1, -44)
+    ContentContainer.BackgroundTransparency = 1
+    ContentContainer.ZIndex = 11
+    ContentContainer.Parent = MainWindow
+
+    local TabsRegistry = {}
+    local AllSearchableCards = {}
+    local navOrderCounter = 0
+
+    local function SelectTab(tabName)
+        for name, tabData in pairs(TabsRegistry) do
+            local isSelected = (name == tabName)
+            tabData.Page.Visible = isSelected
+            TweenService:Create(tabData.Button, TweenInfo.new(0.15), {
+                BackgroundTransparency = isSelected and Theme.TabActiveTrans or 1
+            }):Play()
+            tabData.TitleLabel.TextColor3 = isSelected and Theme.TextPrimary or Theme.TextSecondary
+            tabData.IconLabel.ImageColor3 = isSelected and Theme.TextPrimary or Theme.TextSecondary
+        end
+    end
+
+    local function CreateCategoryGroup(groupTitle)
+        navOrderCounter += 1
+        local groupHeader = Instance.new("TextButton")
+        groupHeader.Name = groupTitle .. "_Category"
+        groupHeader.LayoutOrder = navOrderCounter
+        groupHeader.Size = UDim2.new(1, 0, 0, 24)
+        groupHeader.BackgroundTransparency = 1
+        groupHeader.Text = ""
+        groupHeader.ZIndex = 13
+        groupHeader.Parent = NavScroll
+
+        local label = Instance.new("TextLabel")
+        label.Position = UDim2.new(0, 4, 0, 0)
+        label.Size = UDim2.new(1, -24, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.GothamMedium
+        label.Text = groupTitle
+        label.TextColor3 = Theme.TextSecondary
+        label.TextSize = 11
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.ZIndex = 13
+        label.Parent = groupHeader
+
+        local chevron = Instance.new("ImageLabel")
+        chevron.AnchorPoint = Vector2.new(1, 0.5)
+        chevron.Position = UDim2.new(1, -4, 0.5, 0)
+        chevron.Size = UDim2.fromOffset(12, 12)
+        chevron.BackgroundTransparency = 1
+        chevron.Image = LucideIcons.ChevronUp
+        chevron.ImageColor3 = Theme.TextSecondary
+        chevron.ZIndex = 13
+        chevron.Parent = groupHeader
+
+        local groupTabs = {}
+        local expanded = true
+        groupHeader.MouseButton1Click:Connect(function()
+            expanded = not expanded
+            chevron.Image = expanded and LucideIcons.ChevronUp or LucideIcons.ChevronDown
+            for _, tBtn in ipairs(groupTabs) do
+                tBtn.Visible = expanded
+            end
+        end)
+
+        return groupTabs
+    end
+
+    local function CreateTab(tabName, iconId, groupList)
+        navOrderCounter += 1
+        local tabBtn = Instance.new("TextButton")
+        tabBtn.Name = tabName .. "_TabBtn"
+        tabBtn.LayoutOrder = navOrderCounter
+        tabBtn.Size = UDim2.new(1, 0, 0, 32)
+        tabBtn.BackgroundColor3 = Theme.TabActiveBg
+        tabBtn.BackgroundTransparency = 1
+        tabBtn.AutoButtonColor = false
+        tabBtn.Text = ""
+        tabBtn.ZIndex = 13
+        tabBtn.Parent = NavScroll
+
+        local tabCorner = Instance.new("UICorner")
+        tabCorner.CornerRadius = UDim.new(0, 7)
+        tabCorner.Parent = tabBtn
+
+        local tabIcon = Instance.new("ImageLabel")
+        tabIcon.AnchorPoint = Vector2.new(0, 0.5)
+        tabIcon.Position = UDim2.new(0, 10, 0.5, 0)
+        tabIcon.Size = UDim2.fromOffset(14, 14)
+        tabIcon.BackgroundTransparency = 1
+        tabIcon.Image = iconId
+        tabIcon.ImageColor3 = Theme.TextSecondary
+        tabIcon.ZIndex = 14
+        tabIcon.Parent = tabBtn
+
+        local tabTitle = Instance.new("TextLabel")
+        tabTitle.Position = UDim2.new(0, 32, 0, 0)
+        tabTitle.Size = UDim2.new(1, -36, 1, 0)
+        tabTitle.BackgroundTransparency = 1
+        tabTitle.Font = Enum.Font.GothamMedium
+        tabTitle.Text = tabName
+        tabTitle.TextColor3 = Theme.TextSecondary
+        tabTitle.TextSize = 12
+        tabTitle.TextXAlignment = Enum.TextXAlignment.Left
+        tabTitle.ZIndex = 14
+        tabTitle.Parent = tabBtn
+
+        if groupList then
+            table.insert(groupList, tabBtn)
+        end
+
+        local page = Instance.new("ScrollingFrame")
+        page.Name = tabName .. "_Page"
+        page.Size = UDim2.fromScale(1, 1)
+        page.BackgroundTransparency = 1
+        page.BorderSizePixel = 0
+        page.ScrollBarThickness = 3
+        page.ScrollBarImageColor3 = Color3.fromRGB(90, 95, 110)
+        page.CanvasSize = UDim2.new(0, 0, 0, 0)
+        page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        page.Visible = false
+        page.ZIndex = 12
+        page.Parent = ContentContainer
+
+        local pagePadding = Instance.new("UIPadding")
+        pagePadding.PaddingTop = UDim.new(0, 10)
+        pagePadding.PaddingBottom = UDim.new(0, 14)
+        pagePadding.PaddingLeft = UDim.new(0, 12)
+        pagePadding.PaddingRight = UDim.new(0, 12)
+        pagePadding.Parent = page
+
+        local pageLayout = Instance.new("UIListLayout")
+        pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        pageLayout.Padding = UDim.new(0, 8)
+        pageLayout.Parent = page
+
+        local pageOrder = 0
+        local TabObject = {
+            Button     = tabBtn,
+            TitleLabel = tabTitle,
+            IconLabel  = tabIcon,
+            Page       = page
+        }
+
+        function TabObject:AddSpacer(heightPx)
+            pageOrder += 1
+            local spacer = Instance.new("Frame")
+            spacer.Name = "Spacer_" .. tostring(pageOrder)
+            spacer.LayoutOrder = pageOrder
+            spacer.Size = UDim2.new(1, 0, 0, heightPx or 10)
+            spacer.BackgroundTransparency = 1
+            spacer.ZIndex = 13
+            spacer.Parent = page
+        end
+
+        function TabObject:AddSection(sectionTitle, iconAsset)
+            pageOrder += 1
+            local secFrame = Instance.new("Frame")
+            secFrame.Name = sectionTitle .. "_Section"
+            secFrame.LayoutOrder = pageOrder
+            secFrame.Size = UDim2.new(1, 0, 0, 24)
+            secFrame.BackgroundTransparency = 1
+            secFrame.ZIndex = 13
+            secFrame.Parent = page
+
+            local secIcon = Instance.new("ImageLabel")
+            secIcon.AnchorPoint = Vector2.new(0, 0.5)
+            secIcon.Position = UDim2.new(0, 2, 0.5, 0)
+            secIcon.Size = UDim2.fromOffset(14, 14)
+            secIcon.BackgroundTransparency = 1
+            secIcon.Image = iconAsset or LucideIcons.Haki
+            secIcon.ImageColor3 = Theme.TextPrimary
+            secIcon.ZIndex = 13
+            secIcon.Parent = secFrame
+
+            local secLabel = Instance.new("TextLabel")
+            secLabel.Position = UDim2.new(0, 22, 0, 0)
+            secLabel.Size = UDim2.new(1, -24, 1, 0)
+            secLabel.BackgroundTransparency = 1
+            secLabel.Font = Enum.Font.GothamBold
+            secLabel.Text = sectionTitle
+            secLabel.TextColor3 = Theme.TextPrimary
+            secLabel.TextSize = 12
+            secLabel.TextXAlignment = Enum.TextXAlignment.Left
+            secLabel.ZIndex = 13
+            secLabel.Parent = secFrame
+        end
+
+        function TabObject:AddNote(noteText)
+            pageOrder += 1
+            local card = Instance.new("Frame")
+            card.Name = "NoteCard"
+            card.LayoutOrder = pageOrder
+            card.Size = UDim2.new(1, 0, 0, 48)
+            card.BackgroundColor3 = Theme.CardBg
+            card.BackgroundTransparency = Theme.CardTrans
+            card.ZIndex = 13
+            card.Parent = page
+
+            local cardCorner = Instance.new("UICorner")
+            cardCorner.CornerRadius = UDim.new(0, 8)
+            cardCorner.Parent = card
+
+            local noteLbl = Instance.new("TextLabel")
+            noteLbl.Position = UDim2.new(0, 14, 0, 0)
+            noteLbl.Size = UDim2.new(1, -28, 1, 0)
+            noteLbl.BackgroundTransparency = 1
+            noteLbl.Font = Enum.Font.GothamBold
+            noteLbl.Text = noteText
+            noteLbl.TextColor3 = Theme.TextPrimary
+            noteLbl.TextSize = 13
+            noteLbl.TextXAlignment = Enum.TextXAlignment.Left
+            noteLbl.ZIndex = 14
+            noteLbl.Parent = card
+
+            table.insert(AllSearchableCards, {
+                Card  = card,
+                Query = string.lower(noteText)
+            })
+        end
+
+        function TabObject:AddToggle(titleText, subtitleText, defaultValue, callback)
+            pageOrder += 1
+            local card = Instance.new("TextButton")
+            card.Name = titleText .. "_ToggleCard"
+            card.LayoutOrder = pageOrder
+            card.Size = UDim2.new(1, 0, 0, 58)
+            card.BackgroundColor3 = Theme.CardBg
+            card.BackgroundTransparency = Theme.CardTrans
+            card.AutoButtonColor = false
+            card.Text = ""
+            card.ZIndex = 13
+            card.Parent = page
+
+            local cardCorner = Instance.new("UICorner")
+            cardCorner.CornerRadius = UDim.new(0, 8)
+            cardCorner.Parent = card
+
+            local titleLbl = Instance.new("TextLabel")
+            titleLbl.Position = UDim2.new(0, 14, 0, 10)
+            titleLbl.Size = UDim2.new(1, -60, 0, 18)
+            titleLbl.BackgroundTransparency = 1
+            titleLbl.Font = Enum.Font.GothamBold
+            titleLbl.Text = titleText
+            titleLbl.TextColor3 = Theme.TextPrimary
+            titleLbl.TextSize = 13
+            titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            titleLbl.ZIndex = 14
+            titleLbl.Parent = card
+
+            local subLbl = Instance.new("TextLabel")
+            subLbl.Position = UDim2.new(0, 14, 0, 28)
+            subLbl.Size = UDim2.new(1, -60, 0, 22)
+            subLbl.BackgroundTransparency = 1
+            subLbl.Font = Enum.Font.Gotham
+            subLbl.Text = subtitleText
+            subLbl.TextColor3 = Theme.TextSecondary
+            subLbl.TextSize = 11
+            subLbl.TextWrapped = true
+            subLbl.TextXAlignment = Enum.TextXAlignment.Left
+            subLbl.ZIndex = 14
+            subLbl.Parent = card
+
+            local checkBox = Instance.new("Frame")
+            checkBox.AnchorPoint = Vector2.new(1, 0.5)
+            checkBox.Position = UDim2.new(1, -14, 0.5, 0)
+            checkBox.Size = UDim2.fromOffset(22, 22)
+            checkBox.BackgroundColor3 = defaultValue and Theme.CheckboxOn or Theme.CheckboxOff
+            checkBox.BackgroundTransparency = defaultValue and 0 or 0.25
+            checkBox.ZIndex = 14
+            checkBox.Parent = card
+
+            local checkCorner = Instance.new("UICorner")
+            checkCorner.CornerRadius = UDim.new(0, 6)
+            checkCorner.Parent = checkBox
+
+            local checkIcon = Instance.new("ImageLabel")
+            checkIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+            checkIcon.Position = UDim2.fromScale(0.5, 0.5)
+            checkIcon.Size = UDim2.fromOffset(14, 14)
+            checkIcon.BackgroundTransparency = 1
+            checkIcon.Image = LucideIcons.Check
+            checkIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+            checkIcon.ImageTransparency = defaultValue and 0 or 1
+            checkIcon.ZIndex = 15
+            checkIcon.Parent = checkBox
+
+            local state = defaultValue
+            local function SetState(newState, fireCallback)
+                state = newState
+                TweenService:Create(checkBox, TweenInfo.new(0.15), {
+                    BackgroundColor3 = state and Theme.CheckboxOn or Theme.CheckboxOff,
+                    BackgroundTransparency = state and 0 or 0.25
+                }):Play()
+                TweenService:Create(checkIcon, TweenInfo.new(0.15), {
+                    ImageTransparency = state and 0 or 1
+                }):Play()
+                if fireCallback and callback then
+                    task.spawn(callback, state)
+                end
+            end
+
+            card.MouseButton1Click:Connect(function()
+                SetState(not state, true)
+            end)
+
+            table.insert(AllSearchableCards, {
+                Card  = card,
+                Query = string.lower(titleText .. " " .. subtitleText)
+            })
+
+            return { Set = SetState }
+        end
+
+        function TabObject:AddSlider(titleText, subtitleText, minVal, maxVal, defaultVal, callback)
+            pageOrder += 1
+            local card = Instance.new("Frame")
+            card.Name = titleText .. "_SliderCard"
+            card.LayoutOrder = pageOrder
+            card.Size = UDim2.new(1, 0, 0, 64)
+            card.BackgroundColor3 = Theme.CardBg
+            card.BackgroundTransparency = Theme.CardTrans
+            card.ZIndex = 13
+            card.Parent = page
+
+            local cardCorner = Instance.new("UICorner")
+            cardCorner.CornerRadius = UDim.new(0, 8)
+            cardCorner.Parent = card
+
+            local titleLbl = Instance.new("TextLabel")
+            titleLbl.Position = UDim2.new(0, 14, 0, 8)
+            titleLbl.Size = UDim2.new(1, -170, 0, 20)
+            titleLbl.BackgroundTransparency = 1
+            titleLbl.Font = Enum.Font.GothamBold
+            titleLbl.Text = titleText
+            titleLbl.TextColor3 = Theme.TextPrimary
+            titleLbl.TextSize = 13
+            titleLbl.TextWrapped = true
+            titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            titleLbl.ZIndex = 14
+            titleLbl.Parent = card
+
+            local subLbl = Instance.new("TextLabel")
+            subLbl.Position = UDim2.new(0, 14, 0, 30)
+            subLbl.Size = UDim2.new(1, -170, 0, 26)
+            subLbl.BackgroundTransparency = 1
+            subLbl.Font = Enum.Font.Gotham
+            subLbl.Text = subtitleText
+            subLbl.TextColor3 = Theme.TextSecondary
+            subLbl.TextSize = 11
+            subLbl.TextWrapped = true
+            subLbl.TextXAlignment = Enum.TextXAlignment.Left
+            subLbl.ZIndex = 14
+            subLbl.Parent = card
+
+            local valLbl = Instance.new("TextLabel")
+            valLbl.AnchorPoint = Vector2.new(1, 0.5)
+            valLbl.Position = UDim2.new(1, -108, 0.5, 0)
+            valLbl.Size = UDim2.fromOffset(36, 18)
+            valLbl.BackgroundTransparency = 1
+            valLbl.Font = Enum.Font.GothamMedium
+            valLbl.Text = tostring(defaultVal)
+            valLbl.TextColor3 = Theme.TextSecondary
+            valLbl.TextSize = 11
+            valLbl.TextXAlignment = Enum.TextXAlignment.Right
+            valLbl.ZIndex = 14
+            valLbl.Parent = card
+
+            local track = Instance.new("Frame")
+            track.AnchorPoint = Vector2.new(1, 0.5)
+            track.Position = UDim2.new(1, -14, 0.5, 0)
+            track.Size = UDim2.fromOffset(86, 4)
+            track.BackgroundColor3 = Theme.SliderTrack
+            track.ZIndex = 14
+            track.Parent = card
+
+            local trackCorner = Instance.new("UICorner")
+            trackCorner.CornerRadius = UDim.new(1, 0)
+            trackCorner.Parent = track
+
+            local initAlpha = math.clamp((defaultVal - minVal) / (maxVal - minVal), 0, 1)
+            local fill = Instance.new("Frame")
+            fill.Size = UDim2.new(initAlpha, 0, 1, 0)
+            fill.BackgroundColor3 = Theme.SliderFill
+            fill.ZIndex = 15
+            fill.Parent = track
+
+            local fillCorner = Instance.new("UICorner")
+            fillCorner.CornerRadius = UDim.new(1, 0)
+            fillCorner.Parent = fill
+
+            local thumb = Instance.new("Frame")
+            thumb.AnchorPoint = Vector2.new(0.5, 0.5)
+            thumb.Position = UDim2.new(initAlpha, 0, 0.5, 0)
+            thumb.Size = UDim2.fromOffset(13, 13)
+            thumb.BackgroundColor3 = Theme.SliderThumb
+            thumb.ZIndex = 16
+            thumb.Parent = track
+
+            local thumbCorner = Instance.new("UICorner")
+            thumbCorner.CornerRadius = UDim.new(1, 0)
+            thumbCorner.Parent = thumb
+
+            local sDragging = false
+            local function UpdateFromInput(inputPos)
+                local relX = math.clamp((inputPos.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+                local computed = math.floor(minVal + (maxVal - minVal) * relX + 0.5)
+                local snappedAlpha = (computed - minVal) / (maxVal - minVal)
+                fill.Size = UDim2.new(snappedAlpha, 0, 1, 0)
+                thumb.Position = UDim2.new(snappedAlpha, 0, 0.5, 0)
+                valLbl.Text = tostring(computed)
+                if callback then
+                    task.spawn(callback, computed)
+                end
+            end
+
+            track.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sDragging = true
+                    UpdateFromInput(input.Position)
+                end
+            end)
+            thumb.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sDragging = true
+                    UpdateFromInput(input.Position)
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(input)
+                if sDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    UpdateFromInput(input.Position)
+                end
+            end)
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sDragging = false
+                end
+            end)
+
+            table.insert(AllSearchableCards, {
+                Card  = card,
+                Query = string.lower(titleText .. " " .. subtitleText)
+            })
+        end
+
+        function TabObject:AddDropdown(titleText, subtitleText, optionsList, defaultOpt, callback)
+            pageOrder += 1
+            local card = Instance.new("Frame")
+            card.Name = titleText .. "_DropdownCard"
+            card.LayoutOrder = pageOrder
+            card.Size = UDim2.new(1, 0, 0, 60)
+            card.BackgroundColor3 = Theme.CardBg
+            card.BackgroundTransparency = Theme.CardTrans
+            card.ZIndex = 13
+            card.Parent = page
+
+            local cardCorner = Instance.new("UICorner")
+            cardCorner.CornerRadius = UDim.new(0, 8)
+            cardCorner.Parent = card
+
+            local titleLbl = Instance.new("TextLabel")
+            titleLbl.Position = UDim2.new(0, 14, 0, 8)
+            titleLbl.Size = UDim2.new(1, -145, 0, 18)
+            titleLbl.BackgroundTransparency = 1
+            titleLbl.Font = Enum.Font.GothamBold
+            titleLbl.Text = titleText
+            titleLbl.TextColor3 = Theme.TextPrimary
+            titleLbl.TextSize = 13
+            titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            titleLbl.ZIndex = 14
+            titleLbl.Parent = card
+
+            local subLbl = Instance.new("TextLabel")
+            subLbl.Position = UDim2.new(0, 14, 0, 26)
+            subLbl.Size = UDim2.new(1, -145, 0, 26)
+            subLbl.BackgroundTransparency = 1
+            subLbl.Font = Enum.Font.Gotham
+            subLbl.Text = subtitleText
+            subLbl.TextColor3 = Theme.TextSecondary
+            subLbl.TextSize = 11
+            subLbl.TextWrapped = true
+            subLbl.TextXAlignment = Enum.TextXAlignment.Left
+            subLbl.ZIndex = 14
+            subLbl.Parent = card
+
+            local dropBtn = Instance.new("TextButton")
+            dropBtn.AnchorPoint = Vector2.new(1, 0.5)
+            dropBtn.Position = UDim2.new(1, -14, 0.5, 0)
+            dropBtn.Size = UDim2.fromOffset(108, 28)
+            dropBtn.BackgroundColor3 = Color3.fromRGB(44, 47, 56)
+            dropBtn.BackgroundTransparency = 0.2
+            dropBtn.AutoButtonColor = true
+            dropBtn.Text = ""
+            dropBtn.ZIndex = 14
+            dropBtn.Parent = card
+
+            local dropCorner = Instance.new("UICorner")
+            dropCorner.CornerRadius = UDim.new(0, 6)
+            dropCorner.Parent = dropBtn
+
+            local dropValLabel = Instance.new("TextLabel")
+            dropValLabel.Position = UDim2.new(0, 10, 0, 0)
+            dropValLabel.Size = UDim2.new(1, -28, 1, 0)
+            dropValLabel.BackgroundTransparency = 1
+            dropValLabel.Font = Enum.Font.GothamMedium
+            dropValLabel.Text = defaultOpt or optionsList[1]
+            dropValLabel.TextColor3 = Theme.TextPrimary
+            dropValLabel.TextSize = 11
+            dropValLabel.TextXAlignment = Enum.TextXAlignment.Left
+            dropValLabel.ZIndex = 15
+            dropValLabel.Parent = dropBtn
+
+            local dropIcon = Instance.new("ImageLabel")
+            dropIcon.AnchorPoint = Vector2.new(1, 0.5)
+            dropIcon.Position = UDim2.new(1, -7, 0.5, 0)
+            dropIcon.Size = UDim2.fromOffset(12, 12)
+            dropIcon.BackgroundTransparency = 1
+            dropIcon.Image = LucideIcons.ChevronsUpDown
+            dropIcon.ImageColor3 = Theme.TextSecondary
+            dropIcon.ZIndex = 15
+            dropIcon.Parent = dropBtn
+
+            local currentIdx = table.find(optionsList, defaultOpt) or 1
+            dropBtn.MouseButton1Click:Connect(function()
+                currentIdx = (currentIdx % #optionsList) + 1
+                local chosen = optionsList[currentIdx]
+                dropValLabel.Text = chosen
+                if callback then
+                    task.spawn(callback, chosen)
+                end
+            end)
+
+            table.insert(AllSearchableCards, {
+                Card  = card,
+                Query = string.lower(titleText .. " " .. subtitleText)
+            })
+        end
+
+        function TabObject:AddButton(titleText, subtitleText, badgeText, callback)
+            pageOrder += 1
+            local card = Instance.new("TextButton")
+            card.Name = titleText .. "_ActionCard"
+            card.LayoutOrder = pageOrder
+            card.Size = UDim2.new(1, 0, 0, 52)
+            card.BackgroundColor3 = Theme.CardBg
+            card.BackgroundTransparency = Theme.CardTrans
+            card.AutoButtonColor = true
+            card.Text = ""
+            card.ZIndex = 13
+            card.Parent = page
+
+            local cardCorner = Instance.new("UICorner")
+            cardCorner.CornerRadius = UDim.new(0, 8)
+            cardCorner.Parent = card
+
+            local titleLbl = Instance.new("TextLabel")
+            titleLbl.Position = UDim2.new(0, 14, 0, 8)
+            titleLbl.Size = UDim2.new(1, -90, 0, 18)
+            titleLbl.BackgroundTransparency = 1
+            titleLbl.Font = Enum.Font.GothamBold
+            titleLbl.Text = titleText
+            titleLbl.TextColor3 = Theme.TextPrimary
+            titleLbl.TextSize = 13
+            titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            titleLbl.ZIndex = 14
+            titleLbl.Parent = card
+
+            local subLbl = Instance.new("TextLabel")
+            subLbl.Position = UDim2.new(0, 14, 0, 26)
+            subLbl.Size = UDim2.new(1, -90, 0, 18)
+            subLbl.BackgroundTransparency = 1
+            subLbl.Font = Enum.Font.Gotham
+            subLbl.Text = subtitleText
+            subLbl.TextColor3 = Theme.TextSecondary
+            subLbl.TextSize = 11
+            subLbl.TextXAlignment = Enum.TextXAlignment.Left
+            subLbl.ZIndex = 14
+            subLbl.Parent = card
+
+            local pill = Instance.new("Frame")
+            pill.AnchorPoint = Vector2.new(1, 0.5)
+            pill.Position = UDim2.new(1, -14, 0.5, 0)
+            pill.Size = UDim2.fromOffset(64, 24)
+            pill.BackgroundColor3 = Theme.CheckboxOn
+            pill.ZIndex = 14
+            pill.Parent = card
+
+            local pillCorner = Instance.new("UICorner")
+            pillCorner.CornerRadius = UDim.new(0, 6)
+            pillCorner.Parent = pill
+
+            local pillLbl = Instance.new("TextLabel")
+            pillLbl.Size = UDim2.fromScale(1, 1)
+            pillLbl.BackgroundTransparency = 1
+            pillLbl.Font = Enum.Font.GothamBold
+            pillLbl.Text = badgeText or "Run"
+            pillLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            pillLbl.TextSize = 11
+            pillLbl.ZIndex = 15
+            pillLbl.Parent = pill
+
+            card.MouseButton1Click:Connect(function()
+                if callback then
+                    task.spawn(callback)
+                end
+            end)
+
+            table.insert(AllSearchableCards, {
+                Card  = card,
+                Query = string.lower(titleText .. " " .. subtitleText)
+            })
+        end
+
+        tabBtn.MouseButton1Click:Connect(function()
+            SelectTab(tabName)
+        end)
+
+        TabsRegistry[tabName] = TabObject
+        return TabObject
+    end
+
+    SearchTextBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local q = string.lower(SearchTextBox.Text or "")
+        for _, item in ipairs(AllSearchableCards) do
+            if q == "" or string.find(item.Query, q, 1, true) then
+                item.Card.Visible = true
+            else
+                item.Card.Visible = false
+            end
+        end
+    end)
+
+    -- Populate 6 Tabs
+    local LegitGroup = CreateCategoryGroup("Legit:")
+    local GeneralTab = CreateTab("General", LucideIcons.General, LegitGroup)
+    local CombatTab  = CreateTab("Combat",  LucideIcons.Combat,  LegitGroup)
+    local ESPTab     = CreateTab("ESP",     LucideIcons.ESP,     LegitGroup)
+
+    local RageGroup  = CreateCategoryGroup("Rage:")
+    local BountyTab  = CreateTab("Bounty Hunting", LucideIcons.BountyHunting, RageGroup)
+    local KeyBindTab = CreateTab("Key Bind",       LucideIcons.KeyBind,       RageGroup)
+    local MiscTab    = CreateTab("Misc",           LucideIcons.Misc,          RageGroup)
+
+    -- [TAB 1: LEGIT -> GENERAL]
+    GeneralTab:AddSection("Activate Haki:", LucideIcons.Haki)
+    GeneralTab:AddToggle("Buso Haki", "Enable to activate Buso Haki", Config.BusoHaki, function(val)
+        Config.BusoHaki = val
+    end)
+    GeneralTab:AddToggle("Ken Haki", "Enable to activate Ken Haki", Config.KenHaki, function(val)
+        Config.KenHaki = val
+    end)
+
+    GeneralTab:AddSection("Ability:", LucideIcons.Ability)
+    GeneralTab:AddToggle("Race V3", "Enable to activate Race V3", Config.RaceV3, function(val)
+        Config.RaceV3 = val
+    end)
+    GeneralTab:AddToggle("Race V4", "Enable to activate Race V4", Config.RaceV4, function(val)
+        Config.RaceV4 = val
+    end)
+
+    GeneralTab:AddSection("Player Modifier:", LucideIcons.General)
+    GeneralTab:AddToggle("Anti Stun", "Enable to activate Anti Stun", Config.AntiStun, function(val)
+        Config.AntiStun = val
+    end)
+    GeneralTab:AddSlider("Speed Multiply", "Multiply the speed of the player", 1, 50, Config.SpeedMultiply, function(val)
+        Config.SpeedMultiply = val
+    end)
+    GeneralTab:AddToggle("Speed Boost", "Enable to activate Speed Boost", Config.SpeedBoost, function(val)
+        Config.SpeedBoost = val
+    end)
+    GeneralTab:AddToggle("Jump Power", "Enable to activate Jump Power", Config.JumpPower, function(val)
+        Config.JumpPower = val
+        local hum = Core.GetHumanoid(LocalPlayer)
+        if hum then
+            hum.UseJumpPower = true
+            hum.JumpPower = val and Config.JumpPowerValue or 50
+        end
+    end)
+    GeneralTab:AddToggle("Walk On Water", "Enable to walk on water", Config.WalkOnWater, function(val)
+        Config.WalkOnWater = val
+        pcall(function()
+            local map = Workspace:FindFirstChild("Map")
+            local waterPlane = map and map:FindFirstChild("WaterBase-Plane")
+            if waterPlane then
+                waterPlane.Size = val and Vector3.new(1000, 112, 1000) or Vector3.new(1000, 80, 1000)
+            end
+        end)
+    end)
+
+    -- [TAB 2: LEGIT -> COMBAT]
+    CombatTab:AddSection("Aimbot:", LucideIcons.Target)
+    UI.CamLockToggleRef = CombatTab:AddToggle("Aimbot (Camera Lock)", "Stick camera at target", Config.CameraLock, function(val)
+        Config.CameraLock = val
+        if val then
+            State.LockedTarget = Core.GetBestTarget()
+            if State.LockedTarget then
+                Core.TagPlayerInCombatWithMe(State.LockedTarget, 65)
+            end
+            CamLockStroke.Color = Theme.HudRedText
+            CamLockStroke.Transparency = 0
+            CamLockBtn.TextColor3 = Color3.fromRGB(255, 215, 55)
+        else
+            State.LockedTarget = nil
+            CamLockStroke.Color = Color3.fromRGB(52, 55, 64)
+            CamLockStroke.Transparency = 0.25
+            CamLockBtn.TextColor3 = Theme.HudRedText
+        end
+    end)
+    CombatTab:AddToggle("Silent Aim", "Silent aim skill, gun shot", Config.SilentAim, function(val)
+        Config.SilentAim = val
+        if not val and not Config.SoruSilent then
+            SilentCache.Active = false
+        end
+    end)
+    CombatTab:AddDropdown("Silent Aim Mode", "The mode of the silent aim", {"FOV", "360"}, Config.SilentAimMode, function(val)
+        Config.SilentAimMode = val
+    end)
+    CombatTab:AddDropdown("Aim Target", "Aim at players, mobs, or both", {"Player", "Mob", "Both"}, Config.AimTarget, function(val)
+        Config.AimTarget = val
+    end)
+    CombatTab:AddToggle("FOV Circle", "Show the FOV circle on the screen", Config.ShowFOV, function(val)
+        Config.ShowFOV = val
+        FOVCircleFrame.Visible = val
+    end)
+    CombatTab:AddSlider("FOV Size", "The size of the FOV circle", 50, 800, Config.FOVSize, function(val)
+        Config.FOVSize = val
+        FOVCircleFrame.Size = UDim2.fromOffset(val, val)
+    end)
+    CombatTab:AddDropdown("FOV Mode", "Choose FOV reference position", {"Middle", "Mouse", "Target"}, Config.FOVMode, function(val)
+        Config.FOVMode = val
+    end)
+    CombatTab:AddSlider("Aim Range", "The range of aimbot", 100, 2500, Config.AimRange, function(val)
+        Config.AimRange = val
+    end)
+
+    CombatTab:AddSection("Soru:", LucideIcons.Soru)
+    CombatTab:AddSlider("Soru Silent Range", "The range of Soru silent", 50, 600, Config.SoruSilentRange, function(val)
+        Config.SoruSilentRange = val
+    end)
+    CombatTab:AddToggle("Soru Silent", "Force Soru to target position.", Config.SoruSilent, function(val)
+        Config.SoruSilent = val
+    end)
+
+    CombatTab:AddSpacer(12)
+    CombatTab:AddSection("Attack Aura:", LucideIcons.AttackAura)
+    CombatTab:AddToggle("Attack Aura", "Attack aura to target player. (Melee, Sword, Fruit M1)", Config.AttackAura, function(val)
+        Config.AttackAura = val
+        if not val and Core.StopAttackAura then
+            Core.StopAttackAura()
+        end
+    end)
+
+    CombatTab:AddSpacer(6)
+    CombatTab:AddSection("Utility:", LucideIcons.Utility)
+    CombatTab:AddSlider("Teleport Behide Target Range", "The range of teleport behide target", 50, 600, Config.TeleportBehideRange, function(val)
+        Config.TeleportBehideRange = val
+    end)
+    CombatTab:AddToggle("Teleport Behide Target", "Teleport behind the target", Config.TeleportBehideTarget, function(val)
+        Config.TeleportBehideTarget = val
+    end)
+
+    CombatTab:AddSection("Visualize:", LucideIcons.Visualize)
+    CombatTab:AddToggle("Draw Red Line", "Draw the red line around the target", Config.DrawRedLine, function(val)
+        Config.DrawRedLine = val
+    end)
+    CombatTab:AddToggle("Draw Sphere", "Draw the sphere around the target", Config.DrawSphere, function(val)
+        Config.DrawSphere = val
+    end)
+
+    -- [TAB 3: LEGIT -> ESP]
+    ESPTab:AddSection("ESP Player:", LucideIcons.ESP)
+    ESPTab:AddToggle("Name", "Show the name of the player", Config.ESP_Name, function(val)
+        Config.ESP_Name = val
+    end)
+    ESPTab:AddToggle("Health", "Show the health of the player", Config.ESP_Health, function(val)
+        Config.ESP_Health = val
+    end)
+    ESPTab:AddToggle("Distance", "Show the distance of the player", Config.ESP_Distance, function(val)
+        Config.ESP_Distance = val
+    end)
+    ESPTab:AddToggle("Team", "Show the team of the player", Config.ESP_Team, function(val)
+        Config.ESP_Team = val
+    end)
+    ESPTab:AddToggle("Level", "Show the level of the player", Config.ESP_Level, function(val)
+        Config.ESP_Level = val
+    end)
+    ESPTab:AddToggle("Bounty", "Show the bounty of the player", Config.ESP_Bounty, function(val)
+        Config.ESP_Bounty = val
+    end)
+    ESPTab:AddToggle("Ken Active", "Show the ken active of the player", Config.ESP_KenActive, function(val)
+        Config.ESP_KenActive = val
+    end)
+    ESPTab:AddToggle("Pvp State", "Show pvp status InCombat, Disable Pvp, Ready Pvp", Config.ESP_PvpState, function(val)
+        Config.ESP_PvpState = val
+    end)
+
+    -- [TAB 4: RAGE -> BOUNTY HUNTING]
+    BountyTab:AddSection("Bounty Hunting:", LucideIcons.BountyHunting)
+    BountyTab:AddNote("Note :- bounty hunting comeing soon :)")
+
+    -- [TAB 5: RAGE -> KEY BIND]
+    KeyBindTab:AddSection("Keybinds:", LucideIcons.KeyBind)
+    KeyBindTab:AddDropdown("Toggle UI", "Keybind to toggle UI", {"RightControl", "LeftControl", "RightShift", "Insert"}, Config.Key_ToggleUI.Name, function(val)
+        Config.Key_ToggleUI = Enum.KeyCode[val] or Enum.KeyCode.RightControl
+    end)
+    KeyBindTab:AddDropdown("Camera Lock", "Keybind to toggle Camera Lock", {"Q", "C", "E", "V"}, Config.Key_CameraLock.Name, function(val)
+        Config.Key_CameraLock = Enum.KeyCode[val] or Enum.KeyCode.Q
+    end)
+    KeyBindTab:AddDropdown("TP To Target", "Keybind to teleport to target", {"T", "Y", "B", "H"}, Config.Key_TPToTarget.Name, function(val)
+        Config.Key_TPToTarget = Enum.KeyCode[val] or Enum.KeyCode.T
+    end)
+    KeyBindTab:AddDropdown("Skip Target", "Keybind to skip target", {"G", "N", "M", "J"}, Config.Key_SkipTarget.Name, function(val)
+        Config.Key_SkipTarget = Enum.KeyCode[val] or Enum.KeyCode.G
+    end)
+
+    -- [TAB 6: RAGE -> MISC]
+    MiscTab:AddSection("Configuration:", LucideIcons.Refresh)
+    MiscTab:AddButton("Save Options", "Save current configuration", "Save", function()
+        local ok = Core.SaveConfiguration()
+        UI.Notify("Config Saved", ok and "Saved configuration!" or "Saved to session!", 2.5)
+    end)
+    MiscTab:AddButton("Reset Options", "Restore default configuration", "Reset", function()
+        if delfile and isfile and isfile(ConfigFileName) then
+            pcall(function() delfile(ConfigFileName) end)
+        end
+        for k, v in pairs(DefaultConfig) do
+            Config[k] = v
+        end
+        State.BlacklistedTargets = {}
+        UI.Notify("Config Reset", "Restored defaults & cleared target blacklist.", 2.5)
+    end)
+
+    MiscTab:AddSection("Utilities:", LucideIcons.Misc)
+    MiscTab:AddToggle("Skip Friends", "Ignore Roblox friends when targeting", Config.SkipFriends, function(val)
+        Config.SkipFriends = val
+    end)
+    MiscTab:AddToggle("Invisible", "Enable PvP stealth desync", Config.InvisiblePlus, function(val)
+        Config.InvisiblePlus = val
+    end)
+    MiscTab:AddToggle("Infinite Geppo & Soru", "Remove Geppo and Soru cooldown", Config.InfiniteGeppo, function(val)
+        Config.InfiniteGeppo = val
+    end)
+    MiscTab:AddToggle("Infinite Energy", "Lock character Energy", Config.InfiniteEnergy, function(val)
+        Config.InfiniteEnergy = val
+    end)
+    MiscTab:AddToggle("White Screen", "Disable 3D rendering", Config.WhiteScreen, function(val)
+        Config.WhiteScreen = val
+        WhiteScreenFrame.Visible = val
+        pcall(function() RunService:Set3dRenderingEnabled(not val) end)
+    end)
+    MiscTab:AddToggle("FPS Boost", "Optimize graphics for PvP", Config.FPSBoost, function(val)
+        Config.FPSBoost = val
+        if val then
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 9e9
+                for _, v in ipairs(Workspace:GetDescendants()) do
+                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                        v.Enabled = false
+                    elseif v:IsA("BasePart") then
+                        v.Material = Enum.Material.SmoothPlastic
+                        v.Reflectance = 0
+                    end
+                end
+            end)
+        end
+    end)
+    MiscTab:AddButton("Join Pirates", "Switch to Pirates team", "Pirates", function()
+        if State.CommF_ then pcall(function() State.CommF_:InvokeServer("SetTeam", "Pirates") end) end
+    end)
+    MiscTab:AddButton("Join Marines", "Switch to Marines team", "Marines", function()
+        if State.CommF_ then pcall(function() State.CommF_:InvokeServer("SetTeam", "Marines") end) end
+    end)
+    MiscTab:AddButton("Server Hop", "Join a new public server", "Hop", function()
+        UI.Notify("Server Hop", "Searching for server...", 2.5)
+        Core.ExecuteServerHop()
+    end)
+    MiscTab:AddButton("Rejoin Server", "Reconnect to current server", "Rejoin", function()
+        TeleportService:TeleportToPlaceInstance(State.PlaceId, game.JobId, LocalPlayer)
+    end)
+
+    SelectTab("General")
+end
+
+-- ============================================================================
+-- [SECTION 9 & 10] 360° TARGET VISUALIZERS & 8-FIELD REAL-TIME PLAYER ESP
+-- ============================================================================
+do
+    local TargetSphereAdorn = Instance.new("SphereHandleAdornment")
+    TargetSphereAdorn.Name = "HermanosTargetSphere"
+    TargetSphereAdorn.Color3 = Theme.VisualGreen
+    TargetSphereAdorn.Transparency = 0.45
+    TargetSphereAdorn.Radius = 12.5
+    TargetSphereAdorn.AlwaysOnTop = true
+    TargetSphereAdorn.ZIndex = 5
+    TargetSphereAdorn.Visible = false
+    TargetSphereAdorn.Parent = VisualsFolder
+
+    local TargetLineAdorn = Instance.new("BoxHandleAdornment")
+    TargetLineAdorn.Name = "HermanosTargetLine"
+    TargetLineAdorn.Color3 = Theme.VisualRed
+    TargetLineAdorn.Transparency = 0.05
+    TargetLineAdorn.AlwaysOnTop = true
+    TargetLineAdorn.ZIndex = 6
+    TargetLineAdorn.Visible = false
+    TargetLineAdorn.Parent = VisualsFolder
+
+    local BeamAnchorStart = Instance.new("Part")
+    BeamAnchorStart.Name = "HermanosBeamStart"
+    BeamAnchorStart.Size = Vector3.new(0.05, 0.05, 0.05)
+    BeamAnchorStart.Transparency = 1
+    BeamAnchorStart.Anchored = true
+    BeamAnchorStart.CanCollide = false
+    BeamAnchorStart.CanQuery = false
+    BeamAnchorStart.CanTouch = false
+    BeamAnchorStart.Parent = WorldVisualsFolder
+
+    local BeamAnchorEnd = Instance.new("Part")
+    BeamAnchorEnd.Name = "HermanosBeamEnd"
+    BeamAnchorEnd.Size = Vector3.new(0.05, 0.05, 0.05)
+    BeamAnchorEnd.Transparency = 1
+    BeamAnchorEnd.Anchored = true
+    BeamAnchorEnd.CanCollide = false
+    BeamAnchorEnd.CanQuery = false
+    BeamAnchorEnd.CanTouch = false
+    BeamAnchorEnd.Parent = WorldVisualsFolder
+
+    local BeamAttach0 = Instance.new("Attachment")
+    BeamAttach0.Parent = BeamAnchorStart
+    local BeamAttach1 = Instance.new("Attachment")
+    BeamAttach1.Parent = BeamAnchorEnd
+
+    local TargetRedBeam = Instance.new("Beam")
+    TargetRedBeam.Name = "HermanosRedBeam"
+    TargetRedBeam.Color = ColorSequence.new(Theme.VisualRed)
+    TargetRedBeam.Width0 = 0.07
+    TargetRedBeam.Width1 = 0.07
+    TargetRedBeam.FaceCamera = true
+    TargetRedBeam.LightInfluence = 0
+    TargetRedBeam.Transparency = NumberSequence.new(0.02)
+    TargetRedBeam.Attachment0 = BeamAttach0
+    TargetRedBeam.Attachment1 = BeamAttach1
+    TargetRedBeam.Enabled = false
+    TargetRedBeam.Parent = WorldVisualsFolder
+
+    function Core.UpdateTargetVisualizers(targetPlr)
+        local myHrp = Core.GetRootPart(LocalPlayer)
+        local tChar = targetPlr and Core.GetCharacter(targetPlr)
+        local tHrp  = targetPlr and Core.GetRootPart(targetPlr)
+        local tHum  = targetPlr and Core.GetHumanoid(targetPlr)
+
+        if not myHrp or not tChar or not tHrp or not tHum or tHum.Health <= 0 then
+            TargetSphereAdorn.Visible = false
+            TargetSphereAdorn.Adornee = nil
+            TargetLineAdorn.Visible = false
+            TargetLineAdorn.Adornee = nil
+            TargetRedBeam.Enabled = false
+            return
+        end
+
+        if not WorldVisualsFolder.Parent then
+            WorldVisualsFolder.Parent = Workspace
+        end
+
+        if Config.DrawSphere then
+            TargetSphereAdorn.Adornee = tHrp
+            TargetSphereAdorn.Visible = true
+        else
+            TargetSphereAdorn.Visible = false
+        end
+
+        if Config.DrawRedLine then
+            BeamAnchorStart.Position = myHrp.Position
+            BeamAnchorEnd.Position   = tHrp.Position
+            TargetRedBeam.Enabled    = true
+
+            local dist = (myHrp.Position - tHrp.Position).Magnitude
+            if dist > 0.05 then
+                TargetLineAdorn.Adornee = Workspace.Terrain
+                TargetLineAdorn.Size = Vector3.new(0.05, 0.05, dist)
+                TargetLineAdorn.CFrame = CFrame.lookAt(myHrp.Position, tHrp.Position) * CFrame.new(0, 0, -dist * 0.5)
+                TargetLineAdorn.Visible = true
+            else
+                TargetLineAdorn.Visible = false
+            end
+        else
+            TargetLineAdorn.Visible = false
+            TargetRedBeam.Enabled = false
+        end
+    end
+
+    function Core.UpdateESP()
+        local anyEspActive = (
+            Config.ESP_Name or Config.ESP_Health or Config.ESP_Distance or
+            Config.ESP_Team or Config.ESP_Level or Config.ESP_Bounty or
+            Config.ESP_KenActive or Config.ESP_PvpState
+        )
+        if not anyEspActive then
+            for _, gui in pairs(State.ESPObjects) do
+                gui.Enabled = false
+            end
+            return
+        end
+
+        local myHrp = Core.GetRootPart(LocalPlayer)
+        for _, plr in ipairs(Core.GetAllCandidatePlayers()) do
+            local char = Core.GetCharacter(plr)
+            local head = char and (char:FindFirstChild("Head") or Core.GetRootPart(plr))
+            local hum  = Core.GetHumanoid(plr)
+            local hrp  = Core.GetRootPart(plr)
+
+            if char and head and hum and hrp and hum.Health > 0 then
+                local bGui = State.ESPObjects[plr.UserId]
+                if not bGui then
+                    bGui = Instance.new("BillboardGui")
+                    bGui.Name = "HermanosESP_" .. tostring(plr.UserId)
+                    bGui.AlwaysOnTop = true
+                    bGui.Size = UDim2.fromOffset(230, 100)
+                    bGui.StudsOffset = Vector3.new(0, 3.6, 0)
+                    bGui.Parent = VisualsFolder
+
+                    local textLbl = Instance.new("TextLabel")
+                    textLbl.Name = "InfoLabel"
+                    textLbl.Size = UDim2.fromScale(1, 1)
+                    textLbl.BackgroundTransparency = 1
+                    textLbl.Font = Enum.Font.GothamBold
+                    textLbl.TextSize = 11
+                    textLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    textLbl.TextStrokeTransparency = 0.22
+                    textLbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                    textLbl.RichText = true
+                    textLbl.Parent = bGui
+
+                    State.ESPObjects[plr.UserId] = bGui
+                end
+
+                bGui.Adornee = head
+                bGui.Enabled = true
+
+                local lines = {}
+                if Config.ESP_Name or Config.ESP_Level then
+                    local namePart = Config.ESP_Name and plr.Name or ""
+                    local dataFolder = plr:FindFirstChild("Data")
+                    local lvlObj = dataFolder and dataFolder:FindFirstChild("Level")
+                    local lvlPart = (Config.ESP_Level and lvlObj) and ("[Lv." .. tostring(lvlObj.Value) .. "] ") or ""
+                    table.insert(lines, string.format('<font color="#4ADE80">%s%s</font>', lvlPart, namePart))
+                end
+
+                if Config.ESP_Health or Config.ESP_Distance then
+                    local hpStr = Config.ESP_Health and string.format("HP: %d/%d", math.floor(hum.Health), math.floor(hum.MaxHealth)) or ""
+                    local distVal = myHrp and math.floor((myHrp.Position - hrp.Position).Magnitude) or 0
+                    local distStr = Config.ESP_Distance and string.format("[%dm]", distVal) or ""
+                    table.insert(lines, string.format('<font color="#60A5FA">%s %s</font>', hpStr, distStr))
+                end
+
+                if Config.ESP_Team or Config.ESP_Bounty then
+                    local teamStr = (Config.ESP_Team and plr.Team) and ("Team: " .. plr.Team.Name) or ""
+                    local leaderstats = plr:FindFirstChild("leaderstats")
+                    local bountyObj = leaderstats and leaderstats:FindFirstChild("Bounty/Honor")
+                    local bountyStr = (Config.ESP_Bounty and bountyObj) and ("Bounty: $" .. Core.FormatCompactNumber(bountyObj.Value)) or ""
+                    table.insert(lines, string.format('<font color="#FACC15">%s %s</font>', teamStr, bountyStr))
+                end
+
+                if Config.ESP_KenActive or Config.ESP_PvpState then
+                    local kenStr = Config.ESP_KenActive and ("Ken: " .. (Core.IsPlayerKenActive(plr) and "ON" or "OFF")) or ""
+                    local pvpStr = Config.ESP_PvpState and ("[" .. Core.GetPlayerPvpState(plr) .. "]") or ""
+                    table.insert(lines, string.format('<font color="#F87171">%s %s</font>', kenStr, pvpStr))
+                end
+
+                local lbl = bGui:FindFirstChild("InfoLabel")
+                if lbl then
+                    lbl.Text = table.concat(lines, "\n")
+                end
+            elseif State.ESPObjects[plr.UserId] then
+                State.ESPObjects[plr.UserId].Enabled = false
+            end
+        end
+    end
+end
+
+Players.PlayerRemoving:Connect(function(plr)
+    State.CombatTaggedPlayers[plr.UserId] = nil
+    State.InCombatWithMe[plr.UserId] = nil
+    State.PlayerLastHealth[plr.UserId] = nil
+    State.FriendCache[plr.UserId] = nil
+    if State.ESPObjects[plr.UserId] then
+        State.ESPObjects[plr.UserId]:Destroy()
+        State.ESPObjects[plr.UserId] = nil
+    end
+end)
+
+-- ============================================================================
+-- [SECTION 11] 360° BACKGROUND ATTACK AURA & SORU/GEPPO GC PATCH
+-- ============================================================================
+function Core.GetCombatActiveController()
+    if State.CachedCombatCtrl and (os.clock() - State.LastCombatCtrlScan < 3.5) then
+        return State.CachedCombatCtrl
+    end
+    State.LastCombatCtrlScan = os.clock()
+
+    pcall(function()
+        local cfModule = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("CombatFramework")
+        if cfModule and debug and debug.getupvalues then
+            local ok, cfTable = pcall(require, cfModule)
+            if ok and cfTable then
+                for _, up in pairs(debug.getupvalues(cfTable)) do
+                    if type(up) == "table" and up.activeController then
+                        State.CachedCombatCtrl = up.activeController
+                        return
+                    end
+                end
+            end
+        end
+    end)
+
+    if State.CachedCombatCtrl then return State.CachedCombatCtrl end
+
+    pcall(function()
+        for _, fn in pairs(getgc(true)) do
+            if type(fn) == "table" and rawget(fn, "activeController") then
+                State.CachedCombatCtrl = rawget(fn, "activeController")
+                return
+            elseif type(fn) == "function" and debug and debug.getupvalues then
+                local ok, ups = pcall(debug.getupvalues, fn)
+                if ok and ups then
+                    for _, upVal in pairs(ups) do
+                        if type(upVal) == "table" and rawget(upVal, "activeController") then
+                            State.CachedCombatCtrl = rawget(upVal, "activeController")
+                            return
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    return State.CachedCombatCtrl
+end
+
+function Core.GenerateCombatSessionID()
+    local sessionStr = nil
+    pcall(function()
+        local renv = getrenv and getrenv() or _G
+        local sendFn = (renv and renv._G and renv._G.SendHitsToServer) or _G.SendHitsToServer
+        if type(sendFn) == "function" and debug and debug.getupvalues then
+            local ups = debug.getupvalues(sendFn)
+            if ups and ups[1] then
+                local uidSlice = tostring(LocalPlayer.UserId):sub(2, 4)
+                local memSlice = tostring(ups[1]):sub(11, 15)
+                sessionStr = uidSlice .. memSlice
+            end
+        end
+    end)
+    if not sessionStr or #sessionStr < 4 then
+        pcall(function()
+            local uidSlice = tostring(LocalPlayer.UserId):sub(2, 4)
+            local coSlice  = tostring(coroutine.running()):sub(11, 15)
+            sessionStr = uidSlice .. coSlice
+        end)
+    end
+    return sessionStr
+end
+
+function Core.StopAttackAura()
+    pcall(function()
+        local ac = State.CachedCombatCtrl or Core.GetCombatActiveController()
+        if ac then
+            ac.hitboxMagnitude = 15
+            ac.attacking = false
+        end
+    end)
+end
+
+function Core.Collect360AuraTargets(myChar, myPos, maxRadius)
+    local othersEnemies = {}
+    local addedModels   = {}
+    local primaryPart   = nil
+    local closestDist   = maxRadius
+
+    local function TryAddModel(model, isPlayerPlr)
+        if not model or model == myChar or addedModels[model] then return end
+        local hum  = model:FindFirstChildOfClass("Humanoid")
+        local hrp  = model:FindFirstChild("HumanoidRootPart")
+        local head = model:FindFirstChild("Head") or hrp or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso")
+        local hitPart = head or hrp
+        if not hum or not hitPart or hum.Health <= 0 then return end
+
+        local dist = (hitPart.Position - myPos).Magnitude
+        if dist > maxRadius then return end
+
+        if isPlayerPlr then
+            local canHit, pvpState = Core.CanTargetPlayer(isPlayerPlr)
+            if not canHit or pvpState == "Disable Pvp" then return end
+            Core.TagPlayerInCombatWithMe(isPlayerPlr, 65)
+        end
+
+        addedModels[model] = true
+        table.insert(othersEnemies, { model, hitPart })
+
+        if dist <= closestDist or not primaryPart then
+            closestDist = dist
+            primaryPart = hitPart
+        end
+    end
+
+    local enemiesFolder = Workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, npc in ipairs(enemiesFolder:GetChildren()) do
+            TryAddModel(npc, nil)
+        end
+    end
+
+    local localSafe = Core.IsLocalPlayerInsideSafeZone()
+    for _, plr in ipairs(Core.GetAllCandidatePlayers()) do
+        local char = Core.GetCharacter(plr)
+        if char then
+            local pvpState = Core.GetPlayerPvpState(plr)
+            if not localSafe or pvpState == "InCombat" then
+                TryAddModel(char, plr)
+            end
+        end
+    end
+
+    return primaryPart, othersEnemies
+end
+
+function Core.ExecuteFastAttack()
+    if not Config.AttackAura then return end
+    if Core.IsSkillAimLockActive() then return end
+    if not Core.IsPlayerAlive(LocalPlayer) then return end
+
+    local myChar = Core.GetCharacter(LocalPlayer)
+    local myHrp  = Core.GetRootPart(LocalPlayer)
+    if not myChar or not myHrp then return end
+
+    local equippedTool = myChar:FindFirstChildOfClass("Tool")
+    if not equippedTool or equippedTool.ToolTip == "Gun" then return end
+
+    local basePart, othersEnemies = Core.Collect360AuraTargets(myChar, myHrp.Position, 68)
+    if not basePart or #othersEnemies == 0 then return end
+
+    if not State.RegisterAttack or not State.RegisterHit then
+        Core.ResolveCombatNet()
+    end
+
+    local sessionID = Core.GenerateCombatSessionID()
+
+    if State.RegisterAttack then
+        pcall(function()
+            State.RegisterAttack:FireServer(0)
+        end)
+    end
+
+    pcall(function()
+        local renv = getrenv and getrenv() or _G
+        local sendFn = (renv and renv._G and renv._G.SendHitsToServer) or _G.SendHitsToServer
+        if type(sendFn) == "function" then
+            sendFn(basePart, othersEnemies)
+        end
+    end)
+
+    if State.RegisterHit then
+        pcall(function()
+            if sessionID then
+                State.RegisterHit:FireServer(basePart, othersEnemies, nil, sessionID)
+            else
+                State.RegisterHit:FireServer(basePart, othersEnemies)
+            end
+        end)
+    end
+
+    if NetHitAuth.Captured and NetHitAuth.Remote and NetHitAuth.Remote.Parent then
+        local meshOrHead = basePart.Parent and (basePart.Parent:FindFirstChildWhichIsA("MeshPart") or basePart) or basePart
+        local obfArgs = {
+            NetHitAuth.HitToken,
+            NetHitAuth.SessionId,
+            meshOrHead,
+            othersEnemies,
+            [6] = NetHitAuth.SessionHex
+        }
+        pcall(function()
+            NetHitAuth.Remote:FireServer(unpack(obfArgs, 1, 6))
+        end)
+    end
+
+    local leftClickRemote = equippedTool:FindFirstChild("LeftClickRemote")
+    if leftClickRemote then
+        local diff = basePart.Position - myHrp.Position
+        local dir = (diff.Magnitude > 0.001) and diff.Unit or myHrp.CFrame.LookVector
+        State.ComboCounter = (State.ComboCounter % 4) + 1
+        pcall(function()
+            leftClickRemote:FireServer(dir, State.ComboCounter, true)
+        end)
+    end
+
+    local ac = Core.GetCombatActiveController()
+    if ac then
+        pcall(function()
+            ac.timeToNextAttack = 0
+            ac.attacking = false
+            ac.blocking = false
+            ac.increment = 3
+            ac.hitboxMagnitude = 68
+        end)
+    end
+end
+
+function Core.PatchSoruAndGeppoGC()
+    local char = Core.GetCharacter(LocalPlayer)
+    if not char then return end
+    local soruScript  = char:FindFirstChild("Soru")
+    local geppoScript = char:FindFirstChild("Geppo")
+    pcall(function()
+        for _, fn in pairs(getgc()) do
+            if type(fn) == "function" then
+                local envOk, env = pcall(getfenv, fn)
+                if envOk and env and (env.script == soruScript or env.script == geppoScript) then
+                    local upOk, ups = pcall(debug.getupvalues, fn)
+                    if upOk and ups then
+                        for _, upVal in pairs(ups) do
+                            if type(upVal) == "table" then
+                                if upVal.LastUse then upVal.LastUse = 0 end
+                                if upVal.Cooldown then upVal.Cooldown = 0 end
+                                if upVal.SkyJump then upVal.SkyJump = 0 end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- ============================================================================
+-- [SECTION 12] HERMANOS DEV SILENT AIM + BACKGROUND CAMERA LOCK ENGINE
+-- ============================================================================
+-- Smart Origin-Preserving & Target-Snapping Argument Rewriter for Swords (CDK), Melee (Godhuman), Fruits (Tiger) & Guns
+function Core.RewriteAimArg(val, depth)
+    depth = depth or 0
+    if depth > 2 then return val end
+
+    local tPos   = SilentCache.TargetPos
+    local oPos   = SilentCache.OriginPos
+    local cPos   = SilentCache.CameraPos
+    local uDir   = SilentCache.UnitDir
+    local hitCF  = SilentCache.HitCFrame
+
+    if typeof(val) == "Vector3" then
+        local mag = val.Magnitude
+        if mag >= 0.90 and mag <= 1.10 then
+            return uDir
+        elseif mag > 3 then
+            return tPos
+        end
+        return val
+    elseif typeof(val) == "CFrame" then
+        local p = val.Position
+        -- If the CFrame origin is near the character or camera (e.g. Sword/Melee slash origin or Camera CFrame), preserve its origin and look at TargetPos
+        if ((p - oPos).Magnitude <= 18.0 or (p - cPos).Magnitude <= 18.0) and (tPos - p).Magnitude > 0.1 then
+            return CFrame.lookAt(p, tPos)
+        else
+            return hitCF
+        end
+    elseif typeof(val) == "Ray" then
+        local rOrig = val.Origin
+        local rLen  = math.max(val.Direction.Magnitude, 1000)
+        local rDiff = tPos - rOrig
+        local rDir  = (rDiff.Magnitude > 0.001) and rDiff.Unit or uDir
+        return Ray.new(rOrig, rDir * rLen)
+    elseif type(val) == "table" then
+        local copy = {}
+        for k, v in pairs(val) do
+            copy[k] = Core.RewriteAimArg(v, depth + 1)
+        end
+        return copy
+    end
+    return val
+end
+
+do
+    local NamecallHooked = false
+    local IndexHooked    = false
+
+    local function OnNamecallHook(oldNamecall, self, ...)
+        if not checkcaller() then
+            local method = getnamecallmethod()
+
+            -- 1. RemoteEvent / RemoteFunction Interception
+            if method == "FireServer" or method == "InvokeServer" then
+                local a1, a2, a3, a4, a5, a6 = ...
+                if type(a1) == "string" and type(a2) == "number" and type(a4) == "table" and (type(a6) == "string" or type(a5) == "string") then
+                    NetHitAuth.Remote     = self
+                    NetHitAuth.HitToken   = a1
+                    NetHitAuth.SessionId  = a2
+                    NetHitAuth.SessionHex = type(a6) == "string" and a6 or a5
+                    NetHitAuth.Captured   = true
+                end
+
+                local rName = self.Name
+                if rName == "CommE" then
+                    if a1 == "Soru" or (Core.IsCallerSoruScript() and a1 == "MousePos") then
+                        if Config.SoruSilent and SilentCache.Active and (SilentCache.TargetPos - SilentCache.OriginPos).Magnitude <= Config.SoruSilentRange then
+                            Core.TryExecuteSoruSilentTeleport()
+                            local args = { ... }
+                            local nArgs = select("#", ...)
+                            if typeof(args[2]) == "CFrame" then
+                                args[2] = SilentCache.HitCFrame
+                            elseif typeof(args[2]) == "Vector3" then
+                                args[2] = SilentCache.TargetPos
+                            end
+                            if setnamecallmethod then setnamecallmethod(method) end
+                            return oldNamecall(self, unpack(args, 1, nArgs))
+                        end
+                        return oldNamecall(self, ...)
+                    elseif a1 == "MousePos" and Config.SilentAim and SilentCache.Active then
+                        local args = { ... }
+                        local nArgs = select("#", ...)
+                        if typeof(args[2]) == "CFrame" then
+                            args[2] = SilentCache.HitCFrame
+                        else
+                            args[2] = SilentCache.TargetPos
+                        end
+                        if setnamecallmethod then setnamecallmethod(method) end
+                        return oldNamecall(self, unpack(args, 1, nArgs))
+                    end
+
+                elseif Config.SilentAim and SilentCache.Active then
+                    local isToolChild = (self.Parent and self.Parent:IsA("Tool"))
+                    if isToolChild or rName == "RemoteEvent" or rName == "RemoteFunction" or rName == "LeftClickRemote" or rName == "ShootGunEvent" then
+                        local now = os.clock()
+                        State.LastSkillFireTick   = now
+                        State.LastSkillActionTick = now
+                        State.SkillAimEndTick     = math.max(State.SkillAimEndTick or 0, now + 1.25)
+
+                        local activeTarget = State.LockedTarget or State.SkillLockedTarget or State.CurrentTarget
+                        if activeTarget then
+                            State.SkillLockedTarget = activeTarget
+                            Core.TagPlayerInCombatWithMe(activeTarget, 65)
+                        end
+
+                        Core.AlignSkillGyroToTarget()
+
+                        -- Instant non-yielding MousePos sync in the exact same network tick
+                        if State.CommE and rName ~= "LeftClickRemote" and (now - State.LastMousePosSyncTick > 0.025) then
+                            State.LastMousePosSyncTick = now
+                            pcall(oldNamecall, State.CommE, "MousePos", SilentCache.TargetPos)
+                        end
+
+                        local args = { ... }
+                        local nArgs = select("#", ...)
+                        if rName == "LeftClickRemote" then
+                            if typeof(args[1]) == "Vector3" then
+                                args[1] = SilentCache.UnitDir
+                            elseif typeof(args[1]) == "CFrame" then
+                                args[1] = SilentCache.HitCFrame
+                            end
+                        elseif rName == "ShootGunEvent" then
+                            if typeof(args[1]) == "Vector3" then
+                                args[1] = SilentCache.TargetPos
+                            elseif typeof(args[1]) == "CFrame" then
+                                args[1] = SilentCache.HitCFrame
+                            else
+                                for i = 1, nArgs do
+                                    args[i] = Core.RewriteAimArg(args[i])
+                                end
+                            end
+                        else
+                            for i = 1, nArgs do
+                                args[i] = Core.RewriteAimArg(args[i])
+                            end
+                        end
+                        if setnamecallmethod then
+                            setnamecallmethod(method)
+                        end
+                        return oldNamecall(self, unpack(args, 1, nArgs))
+                    end
+                end
+
+            -- 2. Background Camera Ray & Workspace Aim Raycast Interception (For CDK, Godhuman, Sword/Melee & Gun rays)
+            elseif Config.SilentAim and SilentCache.Active and not Core.IsCameraOrControlScript() and not Core.IsCallerSoruScript() then
+                if (self == Camera or (typeof(self) == "Instance" and self:IsA("Camera"))) and (method == "ScreenPointToRay" or method == "ViewportPointToRay") then
+                    return Ray.new(SilentCache.CameraPos, SilentCache.CamUnitDir)
+                elseif self == Workspace or (typeof(self) == "Instance" and self:IsA("WorldRoot")) then
+                    if method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRay" or method == "FindPartOnRayWithWhitelist" then
+                        local rArg = select(1, ...)
+                        if typeof(rArg) == "Ray" and rArg.Direction.Magnitude >= 25 then
+                            local args = { ... }
+                            local nArgs = select("#", ...)
+                            local orig = rArg.Origin
+                            local diff = SilentCache.TargetPos - orig
+                            local dir  = (diff.Magnitude > 0.001) and diff.Unit or SilentCache.UnitDir
+                            args[1] = Ray.new(orig, dir * math.max(rArg.Direction.Magnitude, (SilentCache.TargetPos - orig).Magnitude + 25))
+                            if setnamecallmethod then setnamecallmethod(method) end
+                            return oldNamecall(self, unpack(args, 1, nArgs))
+                        end
+                    elseif method == "Raycast" then
+                        local orig, dirVec = ...
+                        if typeof(orig) == "Vector3" and typeof(dirVec) == "Vector3" and dirVec.Magnitude >= 25 then
+                            local args = { ... }
+                            local nArgs = select("#", ...)
+                            local diff = SilentCache.TargetPos - orig
+                            local uDir = (diff.Magnitude > 0.001) and diff.Unit or SilentCache.UnitDir
+                            args[2] = uDir * math.max(dirVec.Magnitude, diff.Magnitude + 25)
+                            if setnamecallmethod then setnamecallmethod(method) end
+                            return oldNamecall(self, unpack(args, 1, nArgs))
+                        end
+                    end
+                end
+            end
+        end
+        return oldNamecall(self, ...)
+    end
+
+    local function OnIndexHook(oldIndex, self, key)
+        if not checkcaller() and Core.ShouldRedirectAimForCaller() then
+            -- 1. Mouse Redirect
+            if self == Mouse then
+                if key == "Hit" or key == "hit" then
+                    if Core.IsCallerSoruScript() and Config.SoruSilent then
+                        Core.TryExecuteSoruSilentTeleport()
+                    end
+                    return SilentCache.HitCFrame
+                elseif key == "Target" or key == "target" then
+                    return SilentCache.AimPart
+                elseif key == "UnitRay" or key == "unitRay" then
+                    return Ray.new(SilentCache.CameraPos, SilentCache.CamUnitDir)
+                elseif key == "Origin" or key == "origin" then
+                    return SilentCache.CamLookCFrame
+                end
+            -- 2. Background Camera Lock (Locks Camera CFrame in the background for Tools/Skills while your real screen camera stays untouched!)
+            elseif self == Camera or (typeof(self) == "Instance" and self:IsA("Camera")) then
+                if key == "CFrame" or key == "CoordinateFrame" then
+                    return SilentCache.CamLookCFrame
+                elseif key == "Focus" then
+                    return SilentCache.HitCFrame
+                end
+            end
+        end
+        return oldIndex(self, key)
+    end
+
+    -- 1. Try hookmetamethod first
+    if hookmetamethod then
+        pcall(function()
+            local oldNamecall
+            oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                return OnNamecallHook(oldNamecall, self, ...)
+            end))
+            NamecallHooked = true
+        end)
+
+        pcall(function()
+            local oldIndex
+            oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+                return OnIndexHook(oldIndex, self, key)
+            end))
+            IndexHooked = true
+        end)
+    end
+
+    -- 2. Fallback to getrawmetatable + setreadonly if hookmetamethod is partial/unavailable
+    if (not NamecallHooked or not IndexHooked) and getrawmetatable and setreadonly then
+        pcall(function()
+            local rawMt = getrawmetatable(game)
+            setreadonly(rawMt, false)
+            if not NamecallHooked and rawMt.__namecall then
+                local oldNc = rawMt.__namecall
+                rawMt.__namecall = newcclosure(function(self, ...)
+                    return OnNamecallHook(oldNc, self, ...)
+                end)
+                NamecallHooked = true
+            end
+            if not IndexHooked and rawMt.__index then
+                local oldIdx = rawMt.__index
+                rawMt.__index = newcclosure(function(self, key)
+                    return OnIndexHook(oldIdx, self, key)
+                end)
+                IndexHooked = true
+            end
+            setreadonly(rawMt, true)
+        end)
+    end
+
+    -- 3. Fallback to hookfunction on RemoteEvent.FireServer
+    if not NamecallHooked and hookfunction then
+        pcall(function()
+            local dummyRemote = Instance.new("RemoteEvent")
+            local oldFireServer
+            oldFireServer = hookfunction(dummyRemote.FireServer, newcclosure(function(self, ...)
+                if not checkcaller() and typeof(self) == "Instance" then
+                    local a1, a2, a3, a4, a5, a6 = ...
+                    if type(a1) == "string" and type(a2) == "number" and type(a4) == "table" and (type(a6) == "string" or type(a5) == "string") then
+                        NetHitAuth.Remote     = self
+                        NetHitAuth.HitToken   = a1
+                        NetHitAuth.SessionId  = a2
+                        NetHitAuth.SessionHex = type(a6) == "string" and a6 or a5
+                        NetHitAuth.Captured   = true
+                    end
+
+                    local rName = self.Name
+                    if rName == "CommE" then
+                        if a1 == "Soru" or (Core.IsCallerSoruScript() and a1 == "MousePos") then
+                            if Config.SoruSilent and SilentCache.Active and (SilentCache.TargetPos - SilentCache.OriginPos).Magnitude <= Config.SoruSilentRange then
+                                Core.TryExecuteSoruSilentTeleport()
+                                local args = { ... }
+                                local nArgs = select("#", ...)
+                                if typeof(args[2]) == "CFrame" then
+                                    args[2] = SilentCache.HitCFrame
+                                elseif typeof(args[2]) == "Vector3" then
+                                    args[2] = SilentCache.TargetPos
+                                end
+                                return oldFireServer(self, unpack(args, 1, nArgs))
+                            end
+                            return oldFireServer(self, ...)
+                        elseif a1 == "MousePos" and Config.SilentAim and SilentCache.Active then
+                            local args = { ... }
+                            local nArgs = select("#", ...)
+                            if typeof(args[2]) == "CFrame" then
+                                args[2] = SilentCache.HitCFrame
+                            else
+                                args[2] = SilentCache.TargetPos
+                            end
+                            return oldFireServer(self, unpack(args, 1, nArgs))
+                        end
+                    elseif Config.SilentAim and SilentCache.Active then
+                        local isToolChild = (self.Parent and self.Parent:IsA("Tool"))
+                        if isToolChild or rName == "RemoteEvent" or rName == "LeftClickRemote" or rName == "ShootGunEvent" then
+                            local now = os.clock()
+                            State.LastSkillFireTick   = now
+                            State.LastSkillActionTick = now
+                            State.SkillAimEndTick     = math.max(State.SkillAimEndTick or 0, now + 1.25)
+                            Core.AlignSkillGyroToTarget()
+                            local activeTarget = State.LockedTarget or State.SkillLockedTarget or State.CurrentTarget
+                            if activeTarget then
+                                State.SkillLockedTarget = activeTarget
+                                Core.TagPlayerInCombatWithMe(activeTarget, 65)
+                            end
+                            local args = { ... }
+                            local nArgs = select("#", ...)
+                            if rName == "LeftClickRemote" then
+                                if typeof(args[1]) == "Vector3" then
+                                    args[1] = SilentCache.UnitDir
+                                elseif typeof(args[1]) == "CFrame" then
+                                    args[1] = SilentCache.HitCFrame
+                                end
+                            else
+                                for i = 1, nArgs do
+                                    args[i] = Core.RewriteAimArg(args[i])
+                                end
+                            end
+                            return oldFireServer(self, unpack(args, 1, nArgs))
+                        end
+                    end
+                end
+                return oldFireServer(self, ...)
+            end))
+            dummyRemote:Destroy()
+        end)
+    end
+end
+
+-- ============================================================================
+-- [SECTION 13] MASTER RUNTIME LOOPS (RENDERSTEPPED, STEPPED, HEARTBEAT)
+-- ============================================================================
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    Core.HookMobileSkillsContainer()
+    Core.HookCharacterSkillMovers(newChar)
+    task.spawn(function()
+        local hrp = newChar:WaitForChild("HumanoidRootPart", 10)
+        local hum = newChar:WaitForChild("Humanoid", 10)
+        Camera = Workspace.CurrentCamera or Camera
+        State.LastBusoTick = 0
+        State.CachedCombatCtrl = nil
+        Core.ResolveCombatNet()
+
+        if hum and Config.JumpPower then
+            hum.UseJumpPower = true
+            hum.JumpPower = Config.JumpPowerValue
+        end
+
+        if Config.WalkOnWater then
+            pcall(function()
+                local map = Workspace:FindFirstChild("Map")
+                local waterPlane = map and map:FindFirstChild("WaterBase-Plane")
+                if waterPlane then
+                    waterPlane.Size = Vector3.new(1000, 112, 1000)
+                end
+            end)
+        end
+
+        if Config.CameraLock and hrp then
+            State.LockedTarget = Core.GetBestTarget()
+        end
+    end)
+end)
+
+-- 1. RenderStepped: Fast O(1) SilentCache Update, FOV Circle, Visualizers & Continuous Held-Skill Tracking
+table.insert(State.Connections, RunService.RenderStepped:Connect(function()
+    local cam = Workspace.CurrentCamera or Camera
+
+    UI.FOVCircleFrame.Visible = Config.ShowFOV
+    if Config.ShowFOV then
+        UI.FOVCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+        local refPos = Core.GetFOVReferencePosition()
+        UI.FOVCircleFrame.Position = UDim2.fromOffset(refPos.X, refPos.Y)
+        UI.FOVCircleFrame.Size = UDim2.fromOffset(Config.FOVSize, Config.FOVSize)
+    end
+
+    State.CurrentTarget = Core.GetBestTarget()
+    if Config.CameraLock and not State.LockedTarget then
+        State.LockedTarget = State.CurrentTarget
+    end
+
+    local activeTarget = State.LockedTarget or State.SkillLockedTarget or State.CurrentTarget
+    State.VisualLineTarget = activeTarget
+
+    Core.UpdateTargetVisualizers(activeTarget)
+    Core.UpdateSilentCacheFast()
+
+    if Config.CameraLock and activeTarget and Core.IsPlayerAlive(activeTarget) and cam then
+        local tChar = Core.GetCharacter(activeTarget)
+        local aimPart = (tChar and tChar:FindFirstChild(Config.AimPart)) or Core.GetRootPart(activeTarget)
+        if aimPart and aimPart:IsA("BasePart") then
+            local vel = aimPart.AssemblyLinearVelocity or aimPart.Velocity or Vector3.zero
+            local predPos = aimPart.Position + (vel * (Config.PredictionFactor * 0.5))
+            if (predPos - cam.CFrame.Position).Magnitude > 0.05 then
+                cam.CFrame = CFrame.lookAt(cam.CFrame.Position, predPos)
+            end
+        end
+    end
+
+    -- Continuously locks skill BodyGyro/AlignOrientation & streams MousePos while holding a move AND during post-release windup (CDK/Godhuman/Tiger)
+    if Config.SilentAim and SilentCache.Active and Core.IsSkillAimLockActive() then
+        Core.AlignSkillGyroToTarget()
+        local now = os.clock()
+        if State.CommE and (now - State.LastMousePosSyncTick > 0.03) then
+            State.LastMousePosSyncTick = now
+            local tPos = SilentCache.TargetPos
+            task.spawn(function()
+                pcall(function()
+                    State.CommE:FireServer("MousePos", tPos)
+                end)
+            end)
+        end
+    end
+end))
+
+local WallPhaseParams = RaycastParams.new()
+WallPhaseParams.FilterType = Enum.RaycastFilterType.Exclude
+WallPhaseParams.IgnoreWater = true
+
+-- 2. Stepped: Speed Boost, Jump Power, Small-Wall Phase, Anti-Stun, Walk On Water, Skill Physics Lock & Pursuit
+table.insert(State.Connections, RunService.Stepped:Connect(function(_, dt)
+    local char = Core.GetCharacter(LocalPlayer)
+    local hum  = Core.GetHumanoid(LocalPlayer)
+    local hrp  = Core.GetRootPart(LocalPlayer)
+    if not char or not hum or not hrp or hum.Health <= 0 then return end
+
+    if Config.SilentAim and SilentCache.Active and Core.IsSkillAimLockActive() then
+        Core.UpdateSilentCacheFast()
+        Core.AlignSkillGyroToTarget()
+    end
+
+    if Config.AntiStun then
+        local stunObj = char:FindFirstChild("Stun") or hum:FindFirstChild("Stun")
+        if stunObj and stunObj:IsA("ValueBase") and stunObj.Value ~= 0 then
+            stunObj.Value = 0
+        end
+        if hum.PlatformStand then
+            hum.PlatformStand = false
+        end
+    end
+
+    if Config.JumpPower then
+        hum.UseJumpPower = true
+        hum.JumpPower = Config.JumpPowerValue
+    end
+
+    if Config.SpeedBoost and hum.MoveDirection.Magnitude > 0 then
+        local flatMove = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
+        if flatMove.Magnitude > 0.001 then
+            local moveDir = flatMove.Unit
+            local mult = math.clamp(Config.SpeedMultiply, 1, 50)
+            local stepStuds = (mult * 0.30) * math.min(dt * 60, 2.5)
+            hrp.CFrame = hrp.CFrame + (moveDir * stepStuds)
+
+            if os.clock() - State.LastPhaseTick > 0.12 then
+                WallPhaseParams.FilterDescendantsInstances = { char, WorldVisualsFolder }
+                local hitForward = Workspace:Raycast(hrp.Position, moveDir * 2.6, WallPhaseParams)
+                if hitForward and hitForward.Instance and hitForward.Instance.CanCollide then
+                    local testPos = hrp.Position + (moveDir * 6.5)
+                    local hitInside = Workspace:Raycast(testPos, -moveDir * 5.5, WallPhaseParams)
+                    if hitInside and hitInside.Instance == hitForward.Instance then
+                        local thickness = (hitInside.Position - hitForward.Position).Magnitude
+                        if thickness <= 8.5 then
+                            State.LastPhaseTick = os.clock()
+                            hrp.CFrame = hrp.CFrame + (moveDir * (thickness + 2.2))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if Config.WalkOnWater then
+        local map = Workspace:FindFirstChild("Map")
+        local waterPlane = map and map:FindFirstChild("WaterBase-Plane")
+        if waterPlane and waterPlane.Size.Y < 110 then
+            waterPlane.Size = Vector3.new(1000, 112, 1000)
+        end
+    end
+
+    if Config.InfiniteEnergy then
+        local energyObj = char:FindFirstChild("Energy")
+        if energyObj and energyObj:IsA("ValueBase") then
+            energyObj.Value = energyObj.MaxValue or 15000
+        end
+    end
+
+    if Config.InvisiblePlus then
+        local rootJoint = hrp:FindFirstChild("RootJoint")
+        if rootJoint and rootJoint:IsA("Motor6D") then
+            rootJoint.C0 = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), 0, math.rad(180))
+        end
+    end
+
+    local activeTarget = State.LockedTarget or State.CurrentTarget
+    if Config.TeleportBehideTarget and activeTarget and Core.IsPlayerAlive(activeTarget) then
+        local tHrp = Core.GetRootPart(activeTarget)
+        if tHrp then
+            local dist = (hrp.Position - tHrp.Position).Magnitude
+            if dist <= Config.TeleportBehideRange then
+                Core.TagPlayerInCombatWithMe(activeTarget, 65)
+                hrp.CFrame = tHrp.CFrame * CFrame.new(0, Config.TeleportOffsetY, Config.TeleportOffsetZ)
+            end
+        end
+    end
+end))
+
+-- 3. Heartbeat: Auto Haki, Race V3/V4, 360° Background Attack Aura & ESP Updates
+table.insert(State.Connections, RunService.Heartbeat:Connect(function()
+    local now   = os.clock()
+    local char  = Core.GetCharacter(LocalPlayer)
+    local hum   = Core.GetHumanoid(LocalPlayer)
+    local myHrp = Core.GetRootPart(LocalPlayer)
+    local activeTarget = State.LockedTarget or State.CurrentTarget
+
+    if hum and hum.Health > 0 then
+        if State.MyLastHealth and hum.Health < State.MyLastHealth - 1 and myHrp then
+            if activeTarget then
+                Core.TagPlayerInCombatWithMe(activeTarget, 65)
+            else
+                for _, plr in ipairs(Core.GetAllCandidatePlayers()) do
+                    if Core.IsPlayerAlive(plr) then
+                        local tHrp = Core.GetRootPart(plr)
+                        if tHrp and (myHrp.Position - tHrp.Position).Magnitude <= 350 then
+                            Core.TagPlayerInCombatWithMe(plr, 65)
+                        end
+                    end
+                end
+            end
+        end
+        State.MyLastHealth = hum.Health
+    end
+
+    if Config.BusoHaki and char and not char:FindFirstChild("HasBuso") and (now - State.LastBusoTick > 1.5) then
+        State.LastBusoTick = now
+        if State.CommF_ then
+            task.spawn(function()
+                pcall(function() State.CommF_:InvokeServer("Buso") end)
+            end)
+        end
+    end
+
+    if Config.KenHaki and char and (now - State.LastKenTick > 2.5) then
+        State.LastKenTick = now
+        if State.CommE then
+            task.spawn(function()
+                pcall(function() State.CommE:FireServer("Ken", true) end)
+            end)
+        end
+    end
+
+    if Config.RaceV3 and char and (now - State.LastRaceV3Tick > 1.2) then
+        State.LastRaceV3Tick = now
+        if State.CommE then
+            task.spawn(function()
+                pcall(function() State.CommE:FireServer("ActivateAbility") end)
+            end)
+        end
+    end
+
+    if Config.RaceV4 and char and (now - State.LastRaceV4Tick > 1.5) then
+        State.LastRaceV4Tick = now
+        local awakeningTool = char:FindFirstChild("Awakening") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Awakening"))
+        if awakeningTool and awakeningTool:FindFirstChild("RemoteFunction") then
+            task.spawn(function()
+                pcall(function() awakeningTool.RemoteFunction:InvokeServer(true) end)
+            end)
+        end
+    end
+
+    if (Config.InfiniteGeppo or Config.SoruSilent) and (now - State.LastGCPatchTick > 1.2) then
+        State.LastGCPatchTick = now
+        Core.PatchSoruAndGeppoGC()
+    end
+
+    if Config.AttackAura and (now - State.LastAttackTick >= Config.FastAttackDelay) then
+        State.LastAttackTick = now
+        Core.ExecuteFastAttack()
+    end
+
+    Core.UpdateESP()
+end))
+
+-- 4. Keyboard InputBegan & InputEnded Handlers
+do
+    local SkillKeyMap = {
+        [Enum.KeyCode.Z] = true,
+        [Enum.KeyCode.X] = true,
+        [Enum.KeyCode.C] = true,
+        [Enum.KeyCode.V] = true,
+        [Enum.KeyCode.F] = true
+    }
+
+    table.insert(State.Connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if SkillKeyMap[input.KeyCode] then
+            Core.TriggerSkillAimWindow(1.50)
+        end
+
+        if gameProcessed then return end
+
+        if input.KeyCode == Config.Key_ToggleUI then
+            UI.ToggleMainWindow()
+        elseif input.KeyCode == Config.Key_CameraLock then
+            Config.CameraLock = not Config.CameraLock
+            if UI.CamLockToggleRef then
+                UI.CamLockToggleRef.Set(Config.CameraLock, false)
+            end
+            if Config.CameraLock then
+                State.LockedTarget = Core.GetBestTarget()
+                if State.LockedTarget then
+                    Core.TagPlayerInCombatWithMe(State.LockedTarget, 65)
+                end
+                UI.CamLockStroke.Color = Theme.HudRedText
+                UI.CamLockStroke.Transparency = 0
+                UI.CamLockBtn.TextColor3 = Color3.fromRGB(255, 215, 55)
+            else
+                State.LockedTarget = nil
+                UI.CamLockStroke.Color = Color3.fromRGB(52, 55, 64)
+                UI.CamLockStroke.Transparency = 0.25
+                UI.CamLockBtn.TextColor3 = Theme.HudRedText
+            end
+        elseif input.KeyCode == Config.Key_TPToTarget then
+            local target = State.LockedTarget or State.CurrentTarget or Core.GetBestTarget()
+            if target and Core.IsPlayerAlive(target) then
+                local myHrp = Core.GetRootPart(LocalPlayer)
+                local tHrp  = Core.GetRootPart(target)
+                if myHrp and tHrp then
+                    Core.TagPlayerInCombatWithMe(target, 65)
+                    Core.TryPortalBypass(tHrp.Position)
+                    myHrp.CFrame = tHrp.CFrame * CFrame.new(0, Config.TeleportOffsetY, Config.TeleportOffsetZ)
+                end
+            end
+        elseif input.KeyCode == Config.Key_SkipTarget then
+            local cur = State.LockedTarget or State.CurrentTarget
+            if cur then
+                State.BlacklistedTargets[cur.UserId] = true
+                State.CombatTaggedPlayers[cur.UserId] = nil
+                State.InCombatWithMe[cur.UserId] = nil
+                State.LockedTarget = nil
+                State.SkillLockedTarget = nil
+                State.CurrentTarget = nil
+                UI.Notify("Target Skipped", "Blacklisted " .. cur.Name, 2)
+            end
+        elseif input.KeyCode == Config.Key_SoruSilent then
+            if Config.SoruSilent then
+                Core.UpdateSilentCacheFast()
+                Core.TryExecuteSoruSilentTeleport()
+            else
+                State.NormalSoruBypassTick = os.clock() + 0.45
+            end
+        end
+    end))
+
+    table.insert(State.Connections, UserInputService.InputEnded:Connect(function(input)
+        if SkillKeyMap[input.KeyCode] then
+            Core.TriggerSkillAimWindow(1.35)
+        end
+    end))
+end
+
+-- 5. Anti-AFK Idle Hook
+LocalPlayer.Idled:Connect(function()
+    if VirtualUser then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0, 0))
+        end)
+    end
+end)
+
+-- Initial Walk On Water Plane Application
+if Config.WalkOnWater then
+    pcall(function()
+        local map = Workspace:FindFirstChild("Map")
+        local waterPlane = map and map:FindFirstChild("WaterBase-Plane")
+        if waterPlane then
+            waterPlane.Size = Vector3.new(1000, 112, 1000)
+        end
+    end)
+end
+
+UI.Notify(
+    "Blox fruit-Pvp",
+    State.LoadedFromSave and "Loaded (Saved Config Active)!" or "Loaded Successfully!",
+    3.5
+)
